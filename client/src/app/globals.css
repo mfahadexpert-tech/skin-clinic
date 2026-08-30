@@ -1,57 +1,59 @@
 /* ==============================================================================
-   SkinLab AI - Pixel-Perfect Medical UI Theme
-   Exact Match to DocuVerse & Youcare Design Systems
+   SkinLab AI - High-Contrast DocuVerse Design Tokens & Colors
+   Exact Match to High-Fidelity Reference:
+   - Crisp Charcoal Headings (#0f172a)
+   - Slate Secondary Labels (#64748b)
+   - Pure Snow White Cards (#ffffff) with subtle border (#edf2f2)
+   - Vibrant Medical Green Accents (#00D084, #059669)
+   - Frosted Mint Backdrop (Canvas)
    ============================================================================== */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
 :root {
-  --bg-app: #f4f7f6;
-  --bg-surface: #ffffff;
-  --bg-sidebar: #ffffff;
-  --text-main: #1e293b;
-  --text-muted: #64748b;
-  --border-subtle: #e2e8f0;
-  --primary-green: #00D084;
-  --primary-emerald: #059669;
-  --primary-blue: #2563eb;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
 body {
-  background-color: #f1f5f9;
+  background: radial-gradient(circle at 20% 20%, #d8eae5 0%, #e5edea 45%, #d4e3de 100%);
   color: #0f172a;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
   min-height: 100vh;
   margin: 0;
   padding: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Master App Container Frame */
+/* Master Container Card */
 .docuverse-frame {
   background: #ffffff;
-  border-radius: 2rem;
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  border-radius: 2.25rem;
+  box-shadow: 0 30px 70px -15px rgba(15, 45, 38, 0.14), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
 }
 
-/* DocuVerse Card Styling */
+/* Individual Content Cards */
 .docu-card {
   background: #ffffff;
-  border: 1px solid #f1f5f9;
+  border: 1px solid #edf2f1;
   border-radius: 1.25rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
   transition: all 0.2s ease;
 }
 
 .docu-card:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.05);
+  border-color: #e2e8e7;
 }
 
-/* Mini Vertical Bars for KPI Cards */
+/* Mini Vertical Bars for KPI Status */
 .mini-bar {
-  width: 2.5px;
-  border-radius: 2px;
+  width: 3px;
+  border-radius: 9999px;
   display: inline-block;
 }
 
@@ -64,21 +66,21 @@ body {
 }
 
 .bar-yellow {
-  background-color: #eab308;
+  background-color: #facc15;
 }
 
 .bar-gray {
   background-color: #e2e8f0;
 }
 
-/* Striped Bar Chart for Demographic */
+/* Striped Bar Chart for Demographic (Exact Match to Image 1) */
 .striped-bar-green {
   background: repeating-linear-gradient(
     45deg,
     #10b981,
-    #10b981 4px,
-    #059669 4px,
-    #059669 8px
+    #10b981 5px,
+    #059669 5px,
+    #059669 10px
   );
   border-radius: 0.5rem;
 }
@@ -87,9 +89,9 @@ body {
   background: repeating-linear-gradient(
     45deg,
     #84cc16,
-    #84cc16 4px,
-    #65a30d 4px,
-    #65a30d 8px
+    #84cc16 5px,
+    #65a30d 5px,
+    #65a30d 10px
   );
   border-radius: 0.5rem;
 }
@@ -98,35 +100,36 @@ body {
   background: repeating-linear-gradient(
     45deg,
     #eab308,
-    #eab308 4px,
-    #ca8a04 4px,
-    #ca8a04 8px
+    #eab308 5px,
+    #ca8a04 5px,
+    #ca8a04 10px
   );
   border-radius: 0.5rem;
 }
 
-/* Inputs & Pills */
-.docu-input {
-  background-color: #f8fafc;
+/* Search and Input Fields */
+.docu-search-input {
+  background-color: #ffffff;
   border: 1px solid #e2e8f0;
   color: #0f172a;
   border-radius: 9999px;
-  padding: 0.5rem 1rem;
+  padding: 0.625rem 1.25rem 0.625rem 2.75rem;
   font-size: 0.8125rem;
+  font-weight: 500;
   outline: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   transition: all 0.15s ease;
 }
 
-.docu-input:focus {
-  background-color: #ffffff;
+.docu-search-input:focus {
   border-color: #10b981;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
