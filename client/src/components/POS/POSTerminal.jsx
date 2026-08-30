@@ -1,15 +1,12 @@
 /**
  * ==============================================================================
- * SkinLab AI - Module 3: Clinic POS & Treatment Billing Terminal
+ * SkinLab AI - Module 3: Clinic POS & Treatment Billing Terminal (Simplified UI)
  * ==============================================================================
- * Central operational terminal for front-desk receptionists and cashiers:
- * 1. Searchable Patient Combobox with live Visit Counter badge and Debt/Wallet balance.
- * 2. Inline "+ Add Walk-In Patient" quick registration modal.
- * 3. Doctor/Aesthetician dropdown for practitioner commission and medical liability.
- * 4. Clinical Session Remarks (Laser fluence J/cm2, Spot size, skin notes).
- * 5. Fast treatment & deal search + Custom on-the-fly bundle composer.
- * 6. Live Token Generator (e.g. P-01, P-02) for waiting lounge queue.
- * 7. Dual-Format Print Engine: 80mm ESC/POS Thermal Slip & A4 Clinical Invoice.
+ * Clean, user-friendly, and streamlined for front-desk receptionists:
+ * - Simple labels (Patient, Doctor, Skin Tone, Session Notes, Discount, Total)
+ * - Quick treatment selection with clear pricing
+ * - Easy package session counter (Sessions in Package vs Done Today)
+ * - 1-Click Print (Thermal Receipt / Clinical Invoice)
  * ==============================================================================
  */
 
@@ -26,11 +23,9 @@ import {
   CheckCircle2, 
   Printer, 
   CreditCard, 
-  Coins, 
   Layers, 
   AlertCircle,
   Tag,
-  Clock,
   Sparkles
 } from 'lucide-react';
 import TreatmentCart from './TreatmentCart';
@@ -51,12 +46,12 @@ export default function POSTerminal({
   // POS Form States
   const [selectedPatientId, setSelectedPatientId] = useState(patients[0]?.id || 1);
   const [selectedDoctorId, setSelectedDoctorId] = useState(doctors[0]?.id || 1);
-  const [sessionRemarks, setSessionRemarks] = useState('Fluence 14J/cm², Spot size 10mm, Session 1 completed.');
+  const [sessionRemarks, setSessionRemarks] = useState('Session 1 completed. Advised sunblock.');
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState([
     {
       product_id: 1,
-      product_name: 'HydraFacial Deluxe (Deep Cleansing)',
+      product_name: 'HydraFacial Deluxe',
       quantity: 1,
       unit_price: 6000,
       sessions_allowed: 1,
@@ -82,16 +77,14 @@ export default function POSTerminal({
   // Inline Walk-In Registration States
   const [newPatientName, setNewPatientName] = useState('');
   const [newPatientPhone, setNewPatientPhone] = useState('');
-  const [newPatientSkin, setNewPatientSkin] = useState('Fitzpatrick Type III');
+  const [newPatientSkin, setNewPatientSkin] = useState('Medium Skin');
 
-  // Find currently selected patient
   const selectedPatient = patients.find(p => p.id === parseInt(selectedPatientId)) || patients[0];
 
   // Calculate Subtotal & Grand Total
   const subtotal = cart.reduce((acc, item) => acc + item.total_price, 0);
   const grandTotal = Math.max(0, subtotal - discountAmount + taxAmount);
 
-  // Sync default paid amount when grand total changes
   useEffect(() => {
     setPaidAmount(grandTotal);
   }, [grandTotal]);
@@ -114,7 +107,7 @@ export default function POSTerminal({
           quantity: 1,
           unit_price: product.selling_price,
           sessions_allowed: 1,
-          sessions_consumed: 1, // Default 1 session consumed today
+          sessions_consumed: 1,
           item_group_name: null,
           total_price: product.selling_price
         }
@@ -122,7 +115,7 @@ export default function POSTerminal({
     }
   };
 
-  // Add Pre-configured Bundled Deal to Cart (e.g. 6-Session Laser Package)
+  // Add Package Deal to Cart
   const handleAddDeal = (deal) => {
     const dealItems = deal.items.map(item => ({
       product_id: item.product_id,
@@ -130,18 +123,18 @@ export default function POSTerminal({
       quantity: 1,
       unit_price: deal.discounted_price,
       sessions_allowed: item.sessions,
-      sessions_consumed: 1, // First session consumed today
+      sessions_consumed: 1,
       item_group_name: deal.name,
       total_price: deal.discounted_price
     }));
     setCart([...cart, ...dealItems]);
   };
 
-  // Add On-The-Fly Custom Package
+  // Add Custom Package
   const handleAddCustomPackage = (pkg) => {
     const customItems = pkg.items.map(item => ({
       product_id: item.product_id,
-      product_name: `${item.product_name} (Custom Bundle)`,
+      product_name: `${item.product_name} (Bundle)`,
       quantity: 1,
       unit_price: item.price_override || 0,
       sessions_allowed: item.sessions,
@@ -153,12 +146,10 @@ export default function POSTerminal({
     setIsCustomPackageOpen(false);
   };
 
-  // Remove Item from Cart
   const handleRemoveItem = (index) => {
     setCart(cart.filter((_, i) => i !== index));
   };
 
-  // Update Item Sessions or Quantities
   const handleUpdateItem = (index, field, value) => {
     const updated = [...cart];
     updated[index][field] = value;
@@ -168,10 +159,10 @@ export default function POSTerminal({
     setCart(updated);
   };
 
-  // Execute Quick Checkout
+  // Direct Checkout
   const handleDirectCheckout = async () => {
     if (cart.length === 0) {
-      alert('Cart is empty. Please select at least one treatment.');
+      alert('Please add at least one treatment to the cart.');
       return;
     }
 
@@ -194,7 +185,7 @@ export default function POSTerminal({
     }
   };
 
-  // Save Inline Walk-In Patient
+  // Quick Register Patient
   const handleSaveWalkInPatient = async (e) => {
     e.preventDefault();
     if (!newPatientName || !newPatientPhone) return;
@@ -214,62 +205,51 @@ export default function POSTerminal({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       
-      {/* Top POS Action Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-4 rounded-xl border border-white/10">
+      {/* Top Banner */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-3.5 rounded-xl border border-white/10">
         <div className="flex items-center space-x-3">
           <div className="p-2 rounded-lg bg-teal-500/20 text-teal-300 border border-teal-500/30">
             <ShoppingCart className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white tracking-tight">Clinical POS & Treatment Billing</h1>
-            <p className="text-xs text-slate-400">Reception Counter Terminal | Next Inv: <span className="text-teal-400 font-mono">INV-0043</span></p>
+            <h1 className="text-base font-bold text-white tracking-tight">Treatment Billing & Check-in</h1>
+            <p className="text-xs text-slate-400">Front Desk Counter</p>
           </div>
         </div>
 
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setIsCustomPackageOpen(true)}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white shadow-lg shadow-teal-500/20 transition"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white shadow transition"
           >
             <PackagePlus className="w-3.5 h-3.5" />
-            <span>+ Custom Bundle Builder</span>
-          </button>
-
-          <button
-            onClick={() => window.open(window.location.href, '_blank')}
-            className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 transition"
-            title="Open secondary POS counter window"
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>New Sale Window</span>
+            <span>+ Create Custom Package</span>
           </button>
         </div>
       </div>
 
-      {/* Main 2-Column Split POS Terminal Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Main 2-Column Split Terminal Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
-        {/* LEFT PANEL (7 Cols): Patient Info, Service Search & Cart Table */}
+        {/* LEFT PANEL (7 Cols): Patient Info, Service Search & Cart */}
         <div className="lg:col-span-7 space-y-4">
           
-          {/* Patient Selection & Live Badges */}
+          {/* Patient Selection */}
           <div className="glass-panel p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
-                <span>Patient / Client (PRM)</span>
-              </label>
+              <label className="text-xs font-bold text-slate-200">Select Patient</label>
               <button
                 onClick={() => setIsAddPatientOpen(true)}
-                className="text-xs text-teal-400 hover:text-teal-300 flex items-center space-x-1 font-medium"
+                className="text-xs text-teal-400 hover:text-teal-300 flex items-center space-x-1 font-semibold"
               >
-                <UserPlus className="w-3 h-3" />
-                <span>+ Walk-In Patient</span>
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>+ New Patient</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
               <div className="sm:col-span-8">
                 <select
                   value={selectedPatientId}
@@ -278,36 +258,36 @@ export default function POSTerminal({
                 >
                   {patients.map(p => (
                     <option key={p.id} value={p.id} className="bg-slate-900 text-white">
-                      {p.name} — {p.phone} (MRN: {p.mrn})
+                      {p.name} • {p.phone} (ID: {p.mrn})
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Live Badges (Visit Count, Balance Due, Advance Wallet) */}
-              <div className="sm:col-span-4 flex items-center space-x-2">
-                <span className="text-xs px-2.5 py-1 rounded-md font-semibold bg-cyan-950/80 text-cyan-300 border border-cyan-500/30 whitespace-nowrap">
+              {/* Status Badges */}
+              <div className="sm:col-span-4 flex items-center space-x-1.5">
+                <span className="text-xs px-2 py-1 rounded-md font-medium bg-slate-800 text-slate-300 border border-white/10 whitespace-nowrap">
                   Visits: {selectedPatient?.visit_count || 0}
                 </span>
 
                 {selectedPatient?.current_balance > 0 ? (
-                  <span className="text-xs px-2.5 py-1 rounded-md font-semibold bg-rose-950/80 text-rose-300 border border-rose-500/30 whitespace-nowrap" title="Outstanding Due">
+                  <span className="text-xs px-2 py-1 rounded-md font-bold bg-rose-950/80 text-rose-300 border border-rose-500/30 whitespace-nowrap">
                     Due: PKR {selectedPatient.current_balance}
                   </span>
                 ) : (
-                  <span className="text-xs px-2.5 py-1 rounded-md font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 whitespace-nowrap" title="Advance Wallet Balance">
+                  <span className="text-xs px-2 py-1 rounded-md font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
                     Wallet: PKR {selectedPatient?.advance_balance || 0}
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Treating Doctor Assignment */}
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-1">
+            {/* Doctor & Notes */}
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
               <div className="sm:col-span-6">
                 <label className="text-[11px] text-slate-400 flex items-center space-x-1 mb-1">
                   <Stethoscope className="w-3 h-3 text-teal-400" />
-                  <span>Treating Doctor / Aesthetician</span>
+                  <span>Treating Specialist</span>
                 </label>
                 <select
                   value={selectedDoctorId}
@@ -325,73 +305,73 @@ export default function POSTerminal({
               <div className="sm:col-span-6">
                 <label className="text-[11px] text-slate-400 flex items-center space-x-1 mb-1">
                   <FileText className="w-3 h-3 text-teal-400" />
-                  <span>Clinical Remarks / Energy Parameters</span>
+                  <span>Session Notes</span>
                 </label>
                 <input
                   type="text"
                   value={sessionRemarks}
                   onChange={(e) => setSessionRemarks(e.target.value)}
-                  placeholder="e.g. Fluence 14J/cm2, Spot 10mm"
+                  placeholder="e.g. Session 1 done, SPF 50 advised"
                   className="w-full glass-input text-xs"
                 />
               </div>
             </div>
           </div>
 
-          {/* Treatment Search & Quick Add Pills */}
+          {/* Treatment Search */}
           <div className="glass-panel p-4 space-y-3">
             <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
               <input
                 type="text"
-                placeholder="Search procedures (HydraFacial, Laser, Botox, Carbon Peel, Sunblock)..."
+                placeholder="Search procedures (HydraFacial, Laser, Carbon Peel, Sunblock)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full glass-input pl-9 text-xs"
+                className="w-full glass-input pl-8 text-xs py-2"
               />
             </div>
 
-            {/* Filtered Procedure Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+            {/* Quick Service Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
               {products
                 .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase()))
                 .map(prod => (
                   <div
                     key={prod.id}
                     onClick={() => handleAddProduct(prod)}
-                    className="glass-card p-2.5 flex items-center justify-between cursor-pointer hover:border-teal-500/50 hover:bg-slate-800/80 transition group"
+                    className="glass-card p-2.5 flex items-center justify-between cursor-pointer hover:border-teal-500/50 hover:bg-slate-800 transition group"
                   >
                     <div>
                       <div className="text-xs font-semibold text-slate-200 group-hover:text-teal-300">
                         {prod.name}
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono">
-                        {prod.sku} • {prod.is_service ? 'Clinical Procedure' : 'Retail Skincare'}
+                      <div className="text-[10px] text-slate-400">
+                        {prod.is_service ? 'Procedure' : 'Skincare Item'}
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-xs font-bold text-teal-400">
                         PKR {prod.selling_price.toLocaleString()}
                       </div>
-                      <span className="text-[10px] text-teal-500 font-semibold group-hover:underline">+ Add</span>
+                      <span className="text-[10px] text-teal-400 font-semibold group-hover:underline">+ Select</span>
                     </div>
                   </div>
                 ))}
             </div>
 
-            {/* Predefined Deals Section */}
+            {/* Featured Deals */}
             {deals.length > 0 && (
               <div className="pt-2 border-t border-white/5">
-                <div className="text-[11px] font-semibold text-slate-400 mb-2 flex items-center space-x-1">
+                <div className="text-[11px] font-semibold text-slate-400 mb-1.5 flex items-center space-x-1">
                   <Tag className="w-3 h-3 text-cyan-400" />
-                  <span>Featured Package Deals</span>
+                  <span>Special Multi-Session Packages</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {deals.map(deal => (
                     <div
                       key={deal.id}
                       onClick={() => handleAddDeal(deal)}
-                      className="p-2 rounded-lg bg-cyan-950/30 border border-cyan-500/30 hover:border-cyan-400/60 cursor-pointer transition flex items-center justify-between"
+                      className="p-2 rounded-lg bg-cyan-950/30 border border-cyan-500/30 hover:border-cyan-400 cursor-pointer transition flex items-center justify-between"
                     >
                       <div>
                         <div className="text-xs font-semibold text-cyan-200">{deal.name}</div>
@@ -407,7 +387,7 @@ export default function POSTerminal({
             )}
           </div>
 
-          {/* Interactive Treatment Cart Table */}
+          {/* Cart Table */}
           <div className="glass-panel p-4">
             <TreatmentCart
               cart={cart}
@@ -418,25 +398,25 @@ export default function POSTerminal({
 
         </div>
 
-        {/* RIGHT PANEL (5 Cols): Checkout, Discounts, Split Payment, Token Badge */}
+        {/* RIGHT PANEL (5 Cols): Checkout, Price Summary, Print Mode */}
         <div className="lg:col-span-5 space-y-4">
           
           <div className="glass-panel p-5 space-y-4">
             
-            {/* Queue Token Badge */}
-            <div className="flex items-center justify-between bg-gradient-to-r from-teal-950/60 to-cyan-950/60 p-3 rounded-xl border border-teal-500/30">
+            {/* Token Badge */}
+            <div className="flex items-center justify-between bg-slate-900 p-3 rounded-xl border border-teal-500/30">
               <div>
-                <span className="text-[10px] uppercase font-bold text-teal-400 tracking-wider">Lounge Token Assigned</span>
+                <span className="text-[10px] uppercase font-bold text-teal-400">Waiting Queue Token</span>
                 <div className="text-2xl font-black text-white font-mono">P-01</div>
               </div>
               <div className="text-right">
-                <span className="text-[10px] text-slate-400">Target Area</span>
-                <div className="text-xs font-semibold text-teal-300">Facial & Laser Suite 2</div>
+                <span className="text-[10px] text-slate-400">Room Allocation</span>
+                <div className="text-xs font-semibold text-teal-300">Treatment Suite 2</div>
               </div>
             </div>
 
-            {/* Price Calculations */}
-            <div className="space-y-2.5 pt-2 border-t border-white/5 text-xs">
+            {/* Calculations */}
+            <div className="space-y-2 pt-2 border-t border-white/5 text-xs">
               <div className="flex justify-between text-slate-300">
                 <span>Subtotal:</span>
                 <span className="font-semibold font-mono">PKR {subtotal.toLocaleString()}</span>
@@ -448,17 +428,7 @@ export default function POSTerminal({
                   type="number"
                   value={discountAmount}
                   onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
-                  className="w-28 glass-input text-right text-xs py-1"
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-slate-300">
-                <span>Tax / GST:</span>
-                <input
-                  type="number"
-                  value={taxAmount}
-                  onChange={(e) => setTaxAmount(parseFloat(e.target.value) || 0)}
-                  className="w-28 glass-input text-right text-xs py-1"
+                  className="w-24 glass-input text-right text-xs py-1"
                 />
               </div>
 
@@ -468,9 +438,9 @@ export default function POSTerminal({
               </div>
             </div>
 
-            {/* Payment Mode Selection */}
+            {/* Payment Method */}
             <div className="space-y-2 pt-2 border-t border-white/5">
-              <label className="text-xs font-semibold text-slate-300">Payment Collection Mode</label>
+              <label className="text-xs font-bold text-slate-200">Payment Mode</label>
               <div className="grid grid-cols-2 gap-2">
                 {['cash', 'card', 'split', 'wallet'].map(mode => (
                   <button
@@ -480,10 +450,10 @@ export default function POSTerminal({
                       setPaymentMethod(mode);
                       if (mode === 'split') setIsSplitCheckoutOpen(true);
                     }}
-                    className={`py-2 px-3 rounded-lg text-xs font-semibold capitalize transition ${
+                    className={`py-2 px-2 rounded-lg text-xs font-semibold capitalize transition ${
                       paymentMethod === mode
-                        ? 'bg-teal-500 text-slate-950 shadow-md shadow-teal-500/20'
-                        : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
+                        ? 'bg-teal-500 text-slate-950 font-bold'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                     }`}
                   >
                     {mode}
@@ -492,10 +462,10 @@ export default function POSTerminal({
               </div>
             </div>
 
-            {/* Paid Amount Field */}
+            {/* Paid Amount */}
             {paymentMethod !== 'split' && (
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Amount Paid Now (PKR)</label>
+                <label className="text-xs font-bold text-slate-200">Amount Paid Now (PKR)</label>
                 <input
                   type="number"
                   value={paidAmount}
@@ -505,15 +475,15 @@ export default function POSTerminal({
                 {paidAmount < grandTotal && (
                   <div className="text-[11px] text-rose-400 flex items-center space-x-1 mt-1">
                     <AlertCircle className="w-3 h-3" />
-                    <span>PKR {(grandTotal - paidAmount).toLocaleString()} will be recorded as Patient Due Balance</span>
+                    <span>PKR {(grandTotal - paidAmount).toLocaleString()} recorded as remaining due</span>
                   </div>
                 )}
               </div>
             )}
 
             {/* Print Selection */}
-            <div className="flex items-center justify-between text-xs text-slate-300 pt-2">
-              <span>Print Format:</span>
+            <div className="flex items-center justify-between text-xs text-slate-300 pt-1">
+              <span>Receipt Format:</span>
               <div className="flex items-center space-x-3">
                 <label className="flex items-center space-x-1 cursor-pointer">
                   <input
@@ -533,15 +503,15 @@ export default function POSTerminal({
                     checked={printMode === 'a4'}
                     onChange={(e) => setPrintMode(e.target.value)}
                   />
-                  <span>A4 Clinical Invoice</span>
+                  <span>A4 Invoice</span>
                 </label>
               </div>
             </div>
 
-            {/* Complete Sale & Print Action Button */}
+            {/* Complete Sale Button */}
             <button
               onClick={handleDirectCheckout}
-              className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-slate-950 shadow-xl shadow-teal-500/25 flex items-center justify-center space-x-2 transition transform active:scale-98"
+              className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-slate-950 shadow-lg flex items-center justify-center space-x-2 transition active:scale-98"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>Complete Sale & Print ({printMode.toUpperCase()})</span>
@@ -549,14 +519,14 @@ export default function POSTerminal({
 
           </div>
 
-          {/* Quick Doctor AI Insight Box */}
-          <div className="glass-panel p-4 bg-gradient-to-br from-slate-900/90 to-teal-950/40 border border-teal-500/20">
-            <div className="flex items-center space-x-2 text-teal-400 text-xs font-bold mb-1">
+          {/* Quick Doctor Protocol Summary */}
+          <div className="glass-panel p-3.5 bg-slate-900/80 border border-teal-500/20 text-xs space-y-1">
+            <div className="flex items-center space-x-1.5 text-teal-300 font-bold">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>AI Clinical Protocol Note</span>
+              <span>Doctor Quick Tip</span>
             </div>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
-              Patient is Fitzpatrick Type III. For Diode laser, calibrate fluence between 12-14 J/cm² with active skin cooling. Ensure post-procedure mineral SPF 60 is applied.
+            <p className="text-slate-300 leading-relaxed text-[11px]">
+              Skin Type: <strong>Medium Asian</strong>. Always recommend mineral SPF 50+ sunblock after laser and peels. Avoid hot water for 48 hours.
             </p>
           </div>
 
@@ -564,11 +534,11 @@ export default function POSTerminal({
 
       </div>
 
-      {/* MODAL 1: Inline Walk-In Patient Registration */}
+      {/* MODAL 1: Walk-In Registration */}
       {isAddPatientOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="glass-panel p-6 max-w-md w-full border border-white/20 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
               <h3 className="text-sm font-bold text-white flex items-center space-x-2">
                 <UserPlus className="w-4 h-4 text-teal-400" />
                 <span>Quick Register Walk-In Patient</span>
@@ -576,9 +546,9 @@ export default function POSTerminal({
               <button onClick={() => setIsAddPatientOpen(false)} className="text-slate-400 hover:text-white">✕</button>
             </div>
 
-            <form onSubmit={handleSaveWalkInPatient} className="space-y-3">
+            <form onSubmit={handleSaveWalkInPatient} className="space-y-3 text-xs">
               <div>
-                <label className="text-xs text-slate-300">Patient Full Name *</label>
+                <label className="text-slate-300">Patient Full Name *</label>
                 <input
                   type="text"
                   required
@@ -590,7 +560,7 @@ export default function POSTerminal({
               </div>
 
               <div>
-                <label className="text-xs text-slate-300">Mobile Phone Number *</label>
+                <label className="text-slate-300">Phone Number *</label>
                 <input
                   type="text"
                   required
@@ -602,21 +572,20 @@ export default function POSTerminal({
               </div>
 
               <div>
-                <label className="text-xs text-slate-300">Fitzpatrick Skin Classification</label>
+                <label className="text-slate-300">Skin Tone / Type</label>
                 <select
                   value={newPatientSkin}
                   onChange={(e) => setNewPatientSkin(e.target.value)}
                   className="w-full glass-input text-xs mt-1"
                 >
-                  <option value="Fitzpatrick Type I">Type I - Very Fair, Always Burns</option>
-                  <option value="Fitzpatrick Type II">Type II - Fair Skin, Burns Easily</option>
-                  <option value="Fitzpatrick Type III">Type III - Medium Asian, Moderate Sunburn</option>
-                  <option value="Fitzpatrick Type IV">Type IV - Olive / Darker Asian</option>
-                  <option value="Fitzpatrick Type V">Type V - Brown Skin, Rarely Burns</option>
+                  <option value="Fair Skin (Burns Easily)">Fair Skin (Burns Easily)</option>
+                  <option value="Medium Asian (Standard)">Medium Asian (Standard)</option>
+                  <option value="Olive / Darker Asian">Olive / Darker Asian</option>
+                  <option value="Brown / Tan Skin">Brown / Tan Skin</option>
                 </select>
               </div>
 
-              <div className="flex items-center justify-end space-x-2 pt-3">
+              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setIsAddPatientOpen(false)}
@@ -626,7 +595,7 @@ export default function POSTerminal({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 text-xs font-bold bg-teal-500 hover:bg-teal-400 text-slate-950 rounded-lg shadow-md"
+                  className="px-4 py-1.5 text-xs font-bold bg-teal-500 hover:bg-teal-400 text-slate-950 rounded-lg"
                 >
                   Save & Select
                 </button>
@@ -636,7 +605,7 @@ export default function POSTerminal({
         </div>
       )}
 
-      {/* MODAL 2: Custom On-The-Fly Package Dialog */}
+      {/* MODAL 2: Custom Package */}
       {isCustomPackageOpen && (
         <CustomPackageModal
           products={products}
@@ -645,7 +614,7 @@ export default function POSTerminal({
         />
       )}
 
-      {/* MODAL 3: Split Checkout Dialog */}
+      {/* MODAL 3: Split Checkout */}
       {isSplitCheckoutOpen && (
         <SplitCheckoutModal
           grandTotal={grandTotal}
@@ -657,7 +626,7 @@ export default function POSTerminal({
         />
       )}
 
-      {/* Print Previews (80mm Thermal Receipt or A4 Medical Invoice) */}
+      {/* Print Previews */}
       {completedSale && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-slate-900 border border-white/20 p-6 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto space-y-4">
@@ -669,7 +638,6 @@ export default function POSTerminal({
               <button onClick={() => setCompletedSale(null)} className="text-slate-400 hover:text-white">✕</button>
             </div>
 
-            {/* Print Component */}
             <div id="print-area">
               {printMode === '80mm' ? (
                 <ThermalReceipt sale={completedSale} />
@@ -684,13 +652,13 @@ export default function POSTerminal({
                   onClick={() => setPrintMode('80mm')}
                   className={`text-xs px-3 py-1.5 rounded-lg font-semibold ${printMode === '80mm' ? 'bg-teal-500 text-slate-950' : 'bg-slate-800 text-slate-300'}`}
                 >
-                  80mm Thermal
+                  80mm Slip
                 </button>
                 <button
                   onClick={() => setPrintMode('a4')}
                   className={`text-xs px-3 py-1.5 rounded-lg font-semibold ${printMode === 'a4' ? 'bg-teal-500 text-slate-950' : 'bg-slate-800 text-slate-300'}`}
                 >
-                  A4 Medical Invoice
+                  A4 Invoice
                 </button>
               </div>
 
@@ -700,7 +668,7 @@ export default function POSTerminal({
                   className="flex items-center space-x-1.5 px-4 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-lg text-xs"
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  <span>Print Document</span>
+                  <span>Print</span>
                 </button>
                 <button
                   onClick={() => setCompletedSale(null)}

@@ -1,151 +1,130 @@
 """
 ==============================================================================
-SkinLab AI - LangGraph & LangChain Clinical Intelligence Workflow
+SkinLab AI - LangGraph Clinical Intelligence Agent (Simplified & User-Friendly)
 ==============================================================================
-Implements a state machine graph for clinical decision support:
-[START] -> [Classify Intent] -> [RAG Context Retrieval] -> [Generate Grounded Response] -> [Apply Safety Guardrail] -> [END]
-
-Features:
-- Real-time Server-Sent Events (SSE) token streaming generator.
-- Multi-turn doctor consultation memory.
-- Multilingual Roman Urdu & English processing.
-- Structured clinical SOAP session note drafting.
-- Non-removable disclaimer enforcement.
+Produces clear, concise, and structured guidance without confusing technical walls:
+- Simple bullet points for parameters and steps.
+- Clear Roman Urdu & English responses.
+- Short and crisp SOAP clinical notes.
+- Non-removable safety disclaimer.
 ==============================================================================
 """
 
 import json
-import time
 import asyncio
 from typing import Dict, Any, List, AsyncGenerator
 from .rag_engine import rag_engine
-from .prompt_templates import CLINICAL_SYSTEM_PROMPT, SOAP_NOTE_TEMPLATE
 
 
 class ClinicalState:
-    """State object passing through LangGraph nodes."""
     def __init__(self, query: str, patient_info: Dict[str, Any] = None, language: str = "auto"):
         self.query = query
         self.patient_info = patient_info or {}
         self.language = language
         self.intent = "general_clinical"
         self.context_docs = []
-        self.response_chunks = []
         self.final_response = ""
-        self.has_contraindication_warning = False
 
 
 class SkinLabLangGraphAgent:
-    """
-    StateGraph Workflow Agent orchestrating clinical RAG, intent routing,
-    and streaming responses to the frontend.
-    """
     def __init__(self):
         self.rag = rag_engine
 
     def classify_intent(self, state: ClinicalState) -> str:
-        """Node 1: Classifies the doctor's query intent."""
         q = state.query.lower()
-        if any(w in q for w in ["note", "soap", "draft", "summary", "record", "tahreer"]):
+        if any(w in q for w in ["note", "soap", "draft", "summary", "record"]):
             state.intent = "soap_draft"
-        elif any(w in q for w in ["roaccutane", "safe", "contraindication", "allergy", "khatra", "side effect"]):
-            state.intent = "contraindication_check"
-        elif any(w in q for w in ["parameter", "setting", "fluence", "spot", "joules", "wavelength"]):
-            state.intent = "machine_parameters"
-        elif any(w in q for w in ["hydrafacial", "laser", "peel", "botox", "prp", "carbon"]):
-            state.intent = "treatment_protocol"
+        elif any(w in q for w in ["roaccutane", "safe", "contraindication", "allergy", "khatra"]):
+            state.intent = "safety_check"
+        elif any(w in q for w in ["carbon", "peel", "laser", "hydra"]):
+            state.intent = "protocol"
         else:
-            state.intent = "general_clinical"
+            state.intent = "general"
         return state.intent
 
-    def retrieve_context(self, state: ClinicalState) -> List[Dict[str, Any]]:
-        """Node 2: RAG Context Retrieval Node."""
-        state.context_docs = self.rag.retrieve_relevant_context(state.query, top_k=2)
-        return state.context_docs
-
     def is_roman_urdu(self, text: str) -> bool:
-        """Detects whether query contains Roman Urdu keywords."""
-        urdu_markers = ["kya", "hai", "karein", "hona", "chahiye", "kitne", "ke", "baad", "pehle", "bachein", "chehra", "lagana", "dhoop", "parhez"]
+        urdu_markers = ["kya", "hai", "karein", "hona", "chahiye", "kitne", "ke", "baad", "pehle", "bachein", "chehra", "lagana", "dhoop", "parhez", "bata"]
         tokens = text.lower().split()
         return sum(1 for w in tokens if w in urdu_markers) >= 2
 
     def generate_response_text(self, state: ClinicalState) -> str:
-        """Node 3: Synthesizes intelligent grounded response."""
-        context_str = self.rag.format_context_for_prompt(state.context_docs)
+        q = state.query.lower()
         is_urdu = state.language == "roman_urdu" or self.is_roman_urdu(state.query)
+        p_name = state.patient_info.get("name", "Walk-In Patient")
+        p_skin = state.patient_info.get("skin_type", "Medium Asian")
+        p_mrn = state.patient_info.get("mrn", "0001-08-2026")
 
         if state.intent == "soap_draft":
-            p_name = state.patient_info.get("name", "Walk-In Patient")
-            p_skin = state.patient_info.get("skin_type", "Fitzpatrick Type III")
-            p_mrn = state.patient_info.get("mrn", "0001-08-2026")
-            
-            response = (
-                f"### 📋 Structured Clinical SOAP Note Draft\n\n"
-                f"**Patient**: {p_name} (MRN: {p_mrn}) | **Date**: Today\n"
-                f"- **Subjective (S)**: Patient presents for scheduled session. Reports no adverse reactions, blistering, or hyperpigmentation following previous visit. Desires enhanced glow and texture refinement.\n"
-                f"- **Objective (O)**: Clinical examination reveals {p_skin}. Clear skin without open lesions or active pustules. Applied standard treatment with parameters: Fluence 13.5 J/cm², Spot Size 10mm, Pulses: 450.\n"
-                f"- **Assessment (A)**: Excellent tolerance observed. Expected mild transient perifollicular erythema noted, successfully resolved with post-treatment cold compress and Aloe Vera.\n"
-                f"- **Plan (P)**: Advised mandatory application of DermaShield SPF 60 mineral sunblock every 3 hours. Strict restriction on hot baths, saunas, and direct UV exposure for 48h. Next follow-up in 4 weeks."
+            return (
+                f"### 📋 Quick Clinical Session Note\n\n"
+                f"- **Patient**: {p_name} ({p_mrn}) | **Skin**: {p_skin}\n"
+                f"- **Procedure**: Scheduled Treatment Session\n"
+                f"- **Clinical Response**: Procedure executed smoothly. Normal mild redness resolved with cooling.\n"
+                f"- **Post-Care Advice**: Apply SPF 50+ sunblock every 3 hours. No hot water/steam for 48 hours.\n"
+                f"- **Next Visit**: Recommended follow-up in 4 weeks."
             )
-        elif is_urdu:
-            if "laser" in state.query.lower() or "surkhi" in state.query.lower():
-                response = (
-                    f"### 🔬 Laser Protocol & Post-Care Guidelines (Roman Urdu)\n\n"
-                    f"1. **Post-Laser Cooling**: Laser session ke foran baad skin par cooling gel ya Calamine lotion lagayein. Agar patient ko redness (surkhi) mehsoos ho to 10-15 minute ice pack lagana mufeed hai.\n"
-                    f"2. **Sun Protection (Dhoop se Parhez)**: Patient ko hidayat dein ke agle 7 din tak direct dhoop se bachein aur har 3 ghantay baad **SPF 50+ mineral sunblock** lagayein.\n"
-                    f"3. **Garam Pani & Steam**: 48 ghantay tak hot shower, sauna aur gym se parhez lazmi hai taake skin irritate na ho.\n"
-                    f"4. **Agla Session**: Normal hair reduction ke liye 4 se 6 haftay ka fasla rakhein."
-                )
-            elif "roaccutane" in state.query.lower() or "isotretinoin" in state.query.lower():
-                response = (
-                    f"### ⚠️ Critical Clinical Warning: Roaccutane (Isotretinoin)\n\n"
-                    f"**Hargiz Nahi!** Agar patient Roaccutane (Isotretinoin) le rahi hain to koi bhi ablative laser ya deep chemical peel **strictly contraindicated** hai.\n"
-                    f"- **Wajah**: Roaccutane skin ki regenerative healing aur collagen recovery ko mutasir karta hai, jis se hypertrophic scarring aur permanent pigmentation ka khatra hota hai.\n"
-                    f"- **Protocol**: Medicine mukammal band hone ke **kam az kam 6 mahine baad** he laser ya peeling procedure kiya ja sakta hai."
+
+        if "carbon" in q:
+            if is_urdu:
+                return (
+                    f"### ✨ Carbon Laser Peel (Hollywood Peel) Guide\n\n"
+                    f"1. **Maqsad**: Pores safai, oil control aur instant glow.\n"
+                    f"2. **Tariqa**: Pehle carbon lotion lagayein, 10 min baad laser se clear karein.\n"
+                    f"3. **Procedure ke baad**: Halka surkhi (redness) 1-2 ghantay mein theek ho jata hai.\n"
+                    f"4. **Ahtiyat**: 7 din tak direct dhoop se bachein aur sunblock lagayein."
                 )
             else:
-                response = (
-                    f"### 💡 Clinical Consultation Support\n\n"
-                    f"Aap ke query ke mutabiq clinic standard protocol yeh hai:\n"
-                    f"- Procedure se pehle patient ki skin allergy aur Fitzpatrick scale verify karein.\n"
-                    f"- Treatment parameters session note mein record karein taake doctor commission aur visit history update ho sake.\n"
-                    f"- Mazeed tafseelat ke liye specific service (e.g. HydraFacial, Diode Laser, Carbon Peel) select karein."
+                return (
+                    f"### ✨ Carbon Laser Peel (Hollywood Facial) Protocol\n\n"
+                    f"- **Best For**: Enlarged pores, oily skin, and instant radiance.\n"
+                    f"- **Key Steps**: Apply carbon cream $\\rightarrow$ wait 10 min $\\rightarrow$ Q-Switched laser pass to vaporize carbon.\n"
+                    f"- **Downtime**: Mild pinkness clears in 1–2 hours.\n"
+                    f"- **Post-Care**: Strict sun protection (SPF 50+) and hydrating moisturizer."
                 )
-        else:
-            # Standard English clinical output
-            response = (
-                f"### 🔬 Clinical Treatment Protocol & Guidelines\n\n"
-                f"Based on SkinLab's verified dermatology reference data:\n\n"
-                f"{context_str}\n\n"
-                f"**Clinical Recommendations**:\n"
-                f"1. **Pre-Assessment**: Verify patient is free from active retinoid use or sun tanning within the last 14 days.\n"
-                f"2. **Energy Settings**: Calibrate fluence carefully based on the patient's documented Fitzpatrick phototype.\n"
-                f"3. **Documentation**: Ensure pulse count, spot size, and fluence are recorded in POS Session Remarks before completing checkout."
+
+        if "roaccutane" in q or "isotretinoin" in q:
+            if is_urdu:
+                return (
+                    f"### ⚠️ Roaccutane / Isotretinoin Safety Warning\n\n"
+                    f"- **Nahi**: Roaccutane chalte hue chemical peels ya lasers hargiz na karein.\n"
+                    f"- **Wajah**: Skin jaldi nahi bharti aur nishan (scarring) parne ka khatra hota hai.\n"
+                    f"- **Protocol**: Medicine mukammal band hone ke **6 mahine baad** treatment karein."
+                )
+            else:
+                return (
+                    f"### ⚠️ Roaccutane / Isotretinoin Safety Alert\n\n"
+                    f"- **Status**: Strictly Contraindicated.\n"
+                    f"- **Reason**: Impaired skin healing and high risk of scarring/pigmentation.\n"
+                    f"- **Rule**: Must wait **at least 6 months** after stopping Isotretinoin before any peel or laser."
+                )
+
+        if is_urdu:
+            return (
+                f"### 💡 Clinical Treatment Guide (Roman Urdu)\n\n"
+                f"1. **Pre-Care**: Treatment se pehle patient ki skin tone check karein.\n"
+                f"2. **Post-Care**: Procedure ke baad Aloe Vera cooling dein aur SPF 50+ sunblock lazmi lagwayein.\n"
+                f"3. **Parhez**: 48 ghantay tak garam pani aur sauna se door rahein."
             )
 
-        return response
+        return (
+            f"### 🔬 Treatment & Protocol Summary\n\n"
+            f"- **Skin Tone**: {p_skin}\n"
+            f"- **Pre-Assessment**: Ensure no active tan or retinoid use in last 7 days.\n"
+            f"- **Post-Care**: Mandate mineral SPF 50+ sunblock and gentle skin barrier hydration.\n"
+            f"- **Next Step**: Record session count in POS billing."
+        )
 
     async def stream_clinical_response(self, state: ClinicalState) -> AsyncGenerator[str, None]:
-        """
-        Server-Sent Events (SSE) generator streaming tokens with 
-        non-removable safety disclaimer.
-        """
-        # Step 1: Classify intent & retrieve RAG context
         self.classify_intent(state)
-        self.retrieve_context(state)
-
-        # Step 2: Generate response
         full_text = self.generate_response_text(state)
 
-        # Step 3: Stream word by word simulating real-time model inference
         words = full_text.split(" ")
         for i, word in enumerate(words):
             chunk = word + (" " if i < len(words) - 1 else "")
             payload = json.dumps({"token": chunk, "done": False, "intent": state.intent})
             yield f"data: {payload}\n\n"
-            await asyncio.sleep(0.02) # Realistic 20ms stream interval
+            await asyncio.sleep(0.015)
 
-        # Step 4: Stream non-removable clinical disclaimer badge
         disclaimer_payload = json.dumps({
             "token": "",
             "done": True,
@@ -155,5 +134,4 @@ class SkinLabLangGraphAgent:
         yield f"data: {disclaimer_payload}\n\n"
 
 
-# Global singleton agent
 langgraph_agent = SkinLabLangGraphAgent()

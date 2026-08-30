@@ -1,19 +1,7 @@
 /**
  * ==============================================================================
  * SkinLab AI - Main Single Page Application (SPA) Controller
- * ==============================================================================
- * Unifies all 12 modules and the AI Suite:
- * - Module 1: Authentication & Role-Based Access Control
- * - Module 2 & 11: Real-time Analytics & Machine ROI Reports
- * - Module 3: POS Treatment Billing Terminal & Dual-Format Receipting
- * - Module 4: Sales History & Invoicing
- * - Module 5 & 9: Services Master, Bundles & Barcode Labels
- * - Module 6: Patient PRM & Session Redemption Lifecycle (receive_payment_dialog)
- * - Module 7 & 8: SRM Purchases & Treatment Refund Auditor
- * - Module 10: HRM & Practitioner Directory
- * - Module 12: Clinic Settings & SQL Backups
- * - AI Suite: LangGraph Doctor Assistant, Voice Booking Simulator, WhatsApp Center
- * - Offline Outbox Synchronization Pattern (PWA)
+ * Complete Modern UI/UX Layout with Interactive Calendar, Overview & POS
  * ==============================================================================
  */
 
@@ -21,6 +9,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
+import OverviewDashboard from '@/components/Overview/OverviewDashboard';
+import CalendarManager from '@/components/Calendar/CalendarManager';
 import POSTerminal from '@/components/POS/POSTerminal';
 import PatientDirectory from '@/components/PRM/PatientDirectory';
 import DoctorAssistant from '@/components/AI/DoctorAssistant';
@@ -35,9 +25,10 @@ import { api } from '@/lib/api';
 import { outboxManager } from '@/lib/outbox';
 
 export default function SkinLabApp() {
-  // Navigation & Role States
-  const [activeTab, setActiveTab] = useState('pos'); // 'pos', 'prm', 'ai-doctor', 'voice-agent', 'whatsapp', 'reports', 'catalog', 'hrm', 'purchases', 'settings'
-  const [currentRole, setCurrentRole] = useState('admin'); // 'admin', 'doctor', 'manager', 'cashier'
+  // Navigation & Theme States
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'calendar', 'pos', 'prm', 'ai-doctor', 'voice-agent', 'whatsapp', 'reports', 'catalog', 'hrm', 'purchases', 'settings'
+  const [currentRole, setCurrentRole] = useState('doctor'); // 'admin', 'doctor', 'manager', 'cashier'
+  const [isDarkMode, setIsDarkMode] = useState(false); // Default clean light theme like WellNest, togglable
   const [isOffline, setIsOffline] = useState(false);
   const [outboxCount, setOutboxCount] = useState(0);
 
@@ -47,6 +38,7 @@ export default function SkinLabApp() {
   const [deals, setDeals] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [sales, setSales] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [injectedSessionRemarks, setInjectedSessionRemarks] = useState('');
 
   // Initial Load from Python FastAPI Backend
@@ -68,6 +60,11 @@ export default function SkinLabApp() {
       if (salesData && salesData.invoices) {
         setSales(salesData.invoices);
       }
+
+      const apptData = await api.getCalendarSchedule();
+      if (apptData && apptData.appointments) {
+        setAppointments(apptData.appointments);
+      }
     } catch (e) {
       console.warn("[App] Initial load error or backend starting up:", e);
     }
@@ -79,12 +76,12 @@ export default function SkinLabApp() {
     setOutboxCount(count);
   }, []);
 
-  // Handle Checkout Action (Online or Offline Outbox)
+  // Handle Checkout Action
   const handleCheckout = async (salePayload) => {
     if (isOffline) {
       outboxManager.enqueueAction('create_sale', salePayload);
       setOutboxCount(outboxManager.getPendingQueue().length);
-      alert('Application is in Offline Mode. Sale successfully queued in local Outbox and will auto-sync when online.');
+      alert('Application is in Offline Mode. Sale successfully queued in Outbox.');
       return { success: true, sale: { ...salePayload, invoice_number: 'INV-OFFLINE-01', token_number: 'P-OFF' } };
     }
 
@@ -137,6 +134,11 @@ export default function SkinLabApp() {
     }
   };
 
+  // Handle Adding New Appointment
+  const handleAddAppointment = (newAppt) => {
+    setAppointments(prev => [newAppt, ...prev]);
+  };
+
   // Sync Outbox Queue
   const handleSyncOutbox = async () => {
     const result = await outboxManager.flushQueue(api);
@@ -152,82 +154,105 @@ export default function SkinLabApp() {
   };
 
   return (
-    <div className="min-h-screen pb-12">
-      
-      {/* Top Clinic Navigation & Role Bar */}
-      <Navigation
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        currentRole={currentRole}
-        setCurrentRole={setCurrentRole}
-        isOffline={isOffline}
-        setIsOffline={setIsOffline}
-        outboxCount={outboxCount}
-        onSyncOutbox={handleSyncOutbox}
-      />
-
-      {/* Main Module Content Switcher */}
-      <main className="max-w-7xl mx-auto px-4">
+    <div className={`min-h-screen ${isDarkMode ? 'dark' : ''}`}>
+      <div className="bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 min-h-screen pb-16 transition-colors duration-200">
         
-        {activeTab === 'pos' && (
-          <POSTerminal
-            patients={patients}
-            products={products}
-            deals={deals}
-            doctors={doctors}
-            onCheckout={handleCheckout}
-            onRegisterPatient={handleRegisterPatient}
-            isOffline={isOffline}
-          />
-        )}
+        {/* Navigation Bar */}
+        <Navigation
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          currentRole={currentRole}
+          setCurrentRole={setCurrentRole}
+          isOffline={isOffline}
+          setIsOffline={setIsOffline}
+          outboxCount={outboxCount}
+          onSyncOutbox={handleSyncOutbox}
+          isDarkMode={isDarkMode}
+          setIsDarkMode={setIsDarkMode}
+        />
 
-        {activeTab === 'prm' && (
-          <PatientDirectory
-            patients={patients}
-            onRedeemSession={handleRedeemSession}
-            onRegisterPatient={handleRegisterPatient}
-          />
-        )}
+        {/* Main Content Area */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+          
+          {activeTab === 'overview' && (
+            <OverviewDashboard
+              patients={patients}
+              doctors={doctors}
+              sales={sales}
+              appointments={appointments}
+              onNavigate={setActiveTab}
+            />
+          )}
 
-        {activeTab === 'ai-doctor' && (
-          <DoctorAssistant
-            patients={patients}
-            onInjectNotes={handleInjectAINoteToPOS}
-          />
-        )}
+          {activeTab === 'calendar' && (
+            <CalendarManager
+              appointments={appointments}
+              doctors={doctors}
+              patients={patients}
+              onAddAppointment={handleAddAppointment}
+            />
+          )}
 
-        {activeTab === 'voice-agent' && (
-          <VoiceBookingAgent />
-        )}
+          {activeTab === 'pos' && (
+            <POSTerminal
+              patients={patients}
+              products={products}
+              deals={deals}
+              doctors={doctors}
+              onCheckout={handleCheckout}
+              onRegisterPatient={handleRegisterPatient}
+              isOffline={isOffline}
+            />
+          )}
 
-        {activeTab === 'whatsapp' && (
-          <WhatsAppHub
-            patients={patients}
-          />
-        )}
+          {activeTab === 'prm' && (
+            <PatientDirectory
+              patients={patients}
+              onRedeemSession={handleRedeemSession}
+              onRegisterPatient={handleRegisterPatient}
+            />
+          )}
 
-        {activeTab === 'reports' && (
-          <AnalyticsDashboard />
-        )}
+          {activeTab === 'ai-doctor' && (
+            <DoctorAssistant
+              patients={patients}
+              onInjectNotes={handleInjectAINoteToPOS}
+            />
+          )}
 
-        {activeTab === 'catalog' && (
-          <ServicesMaster />
-        )}
+          {activeTab === 'voice-agent' && (
+            <VoiceBookingAgent />
+          )}
 
-        {activeTab === 'hrm' && (
-          <StaffDirectory />
-        )}
+          {activeTab === 'whatsapp' && (
+            <WhatsAppHub
+              patients={patients}
+            />
+          )}
 
-        {activeTab === 'purchases' && (
-          <SupplierPurchases sales={sales} />
-        )}
+          {activeTab === 'reports' && (
+            <AnalyticsDashboard />
+          )}
 
-        {activeTab === 'settings' && (
-          <ClinicSettings />
-        )}
+          {activeTab === 'catalog' && (
+            <ServicesMaster />
+          )}
 
-      </main>
+          {activeTab === 'hrm' && (
+            <StaffDirectory />
+          )}
 
+          {activeTab === 'purchases' && (
+            <SupplierPurchases sales={sales} />
+          )}
+
+          {activeTab === 'settings' && (
+            <ClinicSettings />
+          )}
+
+        </main>
+
+      </div>
     </div>
   );
 }
