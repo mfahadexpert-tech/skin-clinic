@@ -1,100 +1,126 @@
 /**
  * ==============================================================================
- * SkinLab AI - PRM Before & After Clinical Photo Gallery
- * ==============================================================================
- * Interactive before/after progress slider for aesthetic treatments
- * (HydraFacial, Carbon Peels, Laser Hair Reduction, Botox).
+ * SkinLab AI - Premium Clinical Before & After Visual Skin Analysis
+ * Enterprise $5,000+ Feature Extension
  * ==============================================================================
  */
 
 'use client';
 
 import React, { useState } from 'react';
-import { Sparkles, Calendar, ArrowLeftRight } from 'lucide-react';
+import { 
+  Sparkles, 
+  X, 
+  Layers, 
+  Sliders, 
+  CheckCircle2, 
+  Calendar, 
+  Camera, 
+  FileText
+} from 'lucide-react';
 
 export default function BeforeAfterGallery({ patient, onClose }) {
-  const [sliderPos, setSliderPos] = useState(50);
+  const [sliderPosition, setSliderPosition] = useState(50);
+  const [selectedTreatment, setSelectedTreatment] = useState('Carbon Laser Peel (6 Sessions)');
+
+  const beforeImage = "https://images.unsplash.com/photo-1512290900673-0cd923e20e40?w=600&auto=format&fit=crop&q=80"; // Baseline Acne & Pigmentation
+  const afterImage = "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&auto=format&fit=crop&q=80";  // Post 6 Sessions Clear Glow
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="glass-panel p-6 max-w-xl w-full border border-white/20 shadow-2xl space-y-4">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl p-6 max-w-3xl w-full shadow-2xl space-y-4 border border-slate-100 font-sans">
         
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-          <div>
-            <h3 className="text-sm font-bold text-white flex items-center space-x-1.5">
-              <Sparkles className="w-4 h-4 text-teal-400" />
-              <span>Clinical Progress Documentation (Before & After)</span>
-            </h3>
-            <p className="text-xs text-slate-400">Patient: <strong className="text-teal-300">{patient.name}</strong> ({patient.mrn})</p>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center space-x-2">
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+              <Camera className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-[#0f172a]">Clinical Before & After Skin Analysis</h3>
+              <p className="text-xs text-slate-500 font-medium">Patient: {patient?.name} ({patient?.mrn}) • Skin Tone: {patient?.skin_type || 'Medium Asian'}</p>
+            </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">✕</button>
         </div>
 
-        {/* Visual Progress Card */}
-        <div className="relative h-64 rounded-xl overflow-hidden border border-white/10 bg-slate-900 flex items-center justify-center">
-          
-          {/* Simulated Before Layer */}
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-950/40 to-slate-900 flex items-center justify-start pl-8">
-            <div className="space-y-1">
-              <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/30">
-                BEFORE (Session 1)
-              </span>
-              <div className="text-xs text-slate-300 font-medium">Visible post-acne erythema & enlarged pores</div>
-              <div className="text-[10px] text-slate-500 flex items-center space-x-1">
-                <Calendar className="w-3 h-3" />
-                <span>Captured: 2026-08-10</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Simulated After Layer */}
-          <div 
-            className="absolute inset-0 bg-gradient-to-l from-teal-950/60 to-slate-900 flex items-center justify-end pr-8 border-l-2 border-teal-400"
-            style={{ clipPath: `polygon(${sliderPos}% 0, 100% 0, 100% 100%, ${sliderPos}% 100%)` }}
+        {/* Treatment Selector */}
+        <div className="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-100">
+          <span className="text-xs font-bold text-[#0f172a]">Select Procedure Record:</span>
+          <select
+            value={selectedTreatment}
+            onChange={(e) => setSelectedTreatment(e.target.value)}
+            className="bg-white border border-slate-200 text-xs font-bold text-[#0f172a] rounded-xl px-3 py-1.5 outline-none"
           >
-            <div className="space-y-1 text-right">
-              <span className="px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 text-[10px] font-bold border border-teal-500/30">
-                AFTER (Session 3)
-              </span>
-              <div className="text-xs text-teal-200 font-medium">85% reduction in hyperpigmentation & radiant glow</div>
-              <div className="text-[10px] text-teal-400 flex items-center justify-end space-x-1">
-                <Calendar className="w-3 h-3" />
-                <span>Captured: Today</span>
-              </div>
+            <option value="Carbon Laser Peel (6 Sessions)">Carbon Laser Peel (6 Sessions)</option>
+            <option value="HydraFacial Deluxe (4 Sessions)">HydraFacial Deluxe (4 Sessions)</option>
+            <option value="PRP Vampire Facial with Microneedling">PRP Vampire Facial with Microneedling</option>
+          </select>
+        </div>
+
+        {/* Interactive Before/After Comparison Slider */}
+        <div className="relative w-full h-80 rounded-2xl overflow-hidden shadow-inner select-none border border-slate-200">
+          {/* Before Image (Left Base) */}
+          <img src={beforeImage} className="absolute inset-0 w-full h-full object-cover" alt="Before Treatment" />
+          <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[11px] font-bold px-3 py-1 rounded-full shadow">
+            Baseline (Session 1)
+          </div>
+
+          {/* After Image (Right Clipped) */}
+          <div
+            className="absolute inset-0 overflow-hidden"
+            style={{ clipPath: `polygon(${sliderPosition}% 0, 100% 0, 100% 100%, ${sliderPosition}% 100%)` }}
+          >
+            <img src={afterImage} className="absolute inset-0 w-full h-full object-cover" alt="After Treatment" />
+            <div className="absolute top-3 right-3 bg-emerald-600/90 backdrop-blur-md text-white text-[11px] font-bold px-3 py-1 rounded-full shadow">
+              Post-Care (Session 6)
             </div>
           </div>
 
-          {/* Slider Handle */}
+          {/* Vertical Slider Handle */}
+          <div
+            className="absolute top-0 bottom-0 w-1 bg-white shadow-lg cursor-ew-resize flex items-center justify-center"
+            style={{ left: `${sliderPosition}%` }}
+          >
+            <div className="w-8 h-8 rounded-full bg-white text-[#0f172a] shadow-xl flex items-center justify-center font-bold text-xs border border-slate-200">
+              ↔
+            </div>
+          </div>
+
+          {/* Hidden Input for Dragging */}
           <input
             type="range"
             min="0"
             max="100"
-            value={sliderPos}
-            onChange={(e) => setSliderPos(e.target.value)}
-            className="absolute inset-0 opacity-0 cursor-ew-resize w-full h-full z-10"
+            value={sliderPosition}
+            onChange={(e) => setSliderPosition(e.target.value)}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize"
           />
-
-          <div 
-            className="absolute top-0 bottom-0 w-0.5 bg-teal-400 shadow-lg pointer-events-none z-0"
-            style={{ left: `${sliderPos}%` }}
-          >
-            <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-teal-500 text-slate-950 flex items-center justify-center shadow-lg">
-              <ArrowLeftRight className="w-3 h-3" />
-            </div>
-          </div>
-
         </div>
 
-        <p className="text-center text-[11px] text-slate-400">
-          Drag slider horizontally to evaluate clinical skin texture refinement.
-        </p>
+        {/* Clinical Metrics & Notes */}
+        <div className="grid grid-cols-3 gap-3 text-xs">
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">Pore Size Reduction</span>
+            <span className="text-base font-extrabold text-emerald-600 font-mono">-42%</span>
+          </div>
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">Melasma Clearance</span>
+            <span className="text-base font-extrabold text-teal-600 font-mono">+68%</span>
+          </div>
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">Skin Hydration Index</span>
+            <span className="text-base font-extrabold text-blue-600 font-mono">88 / 100</span>
+          </div>
+        </div>
 
-        <div className="flex justify-end pt-2 border-t border-white/10">
+        {/* Footer */}
+        <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200"
+            className="px-5 py-2 bg-[#0f172a] text-white font-bold rounded-xl text-xs shadow hover:bg-slate-800 transition"
           >
-            Close Viewer
+            Close Analysis
           </button>
         </div>
 
