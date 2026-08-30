@@ -1,10 +1,7 @@
 /**
  * ==============================================================================
- * SkinLab AI - Left Navigation Sidebar (High-Contrast DocuVerse UI)
- * Exact Visual Match to Image 1:
- * - Pure White Sidebar (#ffffff)
- * - Deep Charcoal Text & Active Pills
- * - AI Health Update Card with Mint Gradient and Dark Button
+ * SkinLab AI - Left Navigation Sidebar
+ * 100% Matching DocuVerse / Youcare Design Reference (Circled Sections 1 & 2)
  * ==============================================================================
  */
 
@@ -36,9 +33,9 @@ export default function Navigation({ activeTab, setActiveTab }) {
   ];
 
   return (
-    <aside className="w-64 bg-white p-6 flex flex-col justify-between rounded-l-[2rem] border-r border-slate-100 min-h-[900px] shrink-0">
+    <aside className="w-64 bg-white p-6 flex flex-col justify-between rounded-l-[2rem] border-r border-slate-100 min-h-[900px] shrink-0 font-sans">
       
-      {/* Brand Header */}
+      {/* Brand Header & Navigation List (Circled Section 1) */}
       <div className="space-y-8">
         
         {/* Logo (DocuVerse Clover Style) */}
@@ -76,7 +73,7 @@ export default function Navigation({ activeTab, setActiveTab }) {
 
       </div>
 
-      {/* Bottom Profile & AI Health Update Card */}
+      {/* Bottom Profile & AI Health Update Card (Circled Section 2) */}
       <div className="space-y-4 pt-6">
         
         {/* Profile Chip */}
@@ -91,7 +88,7 @@ export default function Navigation({ activeTab, setActiveTab }) {
           </div>
         </div>
 
-        {/* AI Health Update Card (DocuVerse Floating Widget) */}
+        {/* AI Health Update Card */}
         <div className="p-4 rounded-2xl bg-gradient-to-br from-[#dcfce7] via-[#f0fdf4] to-[#fefce8] border border-[#bbf7d0] space-y-3 relative overflow-hidden shadow-sm">
           
           <div className="flex items-center justify-between">
@@ -106,7 +103,6 @@ export default function Navigation({ activeTab, setActiveTab }) {
             <p className="text-[11px] text-slate-700 font-medium leading-tight">
               New AI engine improves diagnosis accuracy by 27%
             </p>
-            {/* Wave Graphic */}
             <svg className="w-full h-5 pt-1" viewBox="0 0 100 20">
               <path d="M 0 15 Q 25 5, 50 15 T 100 8" fill="none" stroke="#10b981" strokeWidth="2" />
             </svg>
