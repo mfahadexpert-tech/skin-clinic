@@ -1,14 +1,7 @@
 /**
  * ==============================================================================
- * SkinLab AI - Interactive Calendar & Appointment Schedule Manager
- * Inspired by Youcare & DocuVerse Medical UI/UX Designs
- * ==============================================================================
- * Features:
- * 1. Mini Month Date Picker with Active Day highlight.
- * 2. Weekly & Daily Time Slot Grid (9:00 AM - 6:00 PM) with color-coded procedure chips.
- * 3. Doctor Filter Pills (All Doctors, Dr. Sarah Khan, Dr. Ayesha, Zeeshan).
- * 4. Interactive "+ Book Appointment" & "Edit Schedule" Popover Modal with Conflict Detection.
- * 5. Google Calendar Sync status indicator.
+ * SkinLab AI - Appointment & Calendar Schedule Manager
+ * Pixel-Perfect Implementation of Youcare Medical UI/UX Architecture
  * ==============================================================================
  */
 
@@ -23,483 +16,431 @@ import {
   Clock, 
   User, 
   Stethoscope, 
-  CheckCircle2, 
   Filter, 
   Download, 
-  Sparkles,
-  Search,
-  X,
-  AlertCircle
+  Search, 
+  MoreHorizontal,
+  Video,
+  Share2,
+  Check,
+  RefreshCw,
+  X
 } from 'lucide-react';
 
 export default function CalendarManager({ appointments = [], doctors = [], patients = [], onAddAppointment }) {
-  // Calendar View States
-  const [selectedDate, setSelectedDate] = useState(new Date().getDate());
-  const [selectedDoctorFilter, setSelectedDoctorFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('week'); // 'week', 'day', 'month'
-  const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
-  const [activeAppointmentDetail, setActiveAppointmentDetail] = useState(null);
+  // Calendar States
+  const [selectedDayNumber, setSelectedDayNumber] = useState(5);
+  const [selectedMonth, setSelectedMonth] = useState('Monthly');
+  const [activePopoverAppt, setActivePopoverAppt] = useState(null);
+  const [isCheckNewOpen, setIsCheckNewOpen] = useState(false);
 
-  // New Booking Form States
-  const [patientId, setPatientId] = useState(patients[0]?.id || 1);
-  const [doctorId, setDoctorId] = useState(doctors[0]?.id || 1);
-  const [treatmentName, setTreatmentName] = useState('HydraFacial Deluxe');
-  const [bookingTime, setBookingTime] = useState('11:00 AM');
-  const [bookingDate, setBookingDate] = useState('2026-08-31');
-  const [bookingNotes, setBookingNotes] = useState('Consultation + Session 1');
+  // New Booking / Edit Schedule State
+  const [scheduleTitle, setScheduleTitle] = useState('Physical Control Health');
+  const [scheduleTime, setScheduleTime] = useState('09:00 AM → 11:00 AM');
+  const [guestCount, setGuestCount] = useState('1 Going, 1 Awaiting');
 
-  // Days of current week
-  const weekDays = [
-    { dayName: 'Mon', date: 31, full: '2026-08-31' },
-    { dayName: 'Tue', date: 1, full: '2026-09-01' },
-    { dayName: 'Wed', date: 2, full: '2026-09-02' },
-    { dayName: 'Thu', date: 3, full: '2026-09-03' },
-    { dayName: 'Fri', date: 4, full: '2026-09-04' },
-    { dayName: 'Sat', date: 5, full: '2026-09-05' },
-    { dayName: 'Sun', date: 6, full: '2026-09-06' },
+  // Days Header (Youcare Style)
+  const columns = [
+    { id: 'mon', label: 'MON 1' },
+    { id: 'tue', label: 'TUE 2' },
+    { id: 'wed', label: 'WED 3', isToday: true },
+    { id: 'thu', label: 'THU 4' },
+    { id: 'fri', label: 'FRI 5' },
+    { id: 'sat', label: 'SAT 6' },
+    { id: 'sun', label: 'SUN 7' },
   ];
 
-  // Time Slots
-  const timeSlots = [
-    '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', 
-    '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM'
+  // Hourly rows
+  const hours = ['09 AM', '10 AM', '11 AM', '12 AM'];
+
+  // Youcare Appointment blocks data
+  const scheduleEvents = [
+    {
+      id: 1,
+      col: 'mon',
+      timeSlot: '09 AM',
+      title: 'Check Health',
+      time: '09 AM - 10 AM',
+      color: 'bg-purple-50 border border-purple-300 text-purple-700',
+      patient: 'Sana Mir',
+      doctor: 'Dr. Sarah Khan'
+    },
+    {
+      id: 2,
+      col: 'wed',
+      timeSlot: '09 AM',
+      title: 'Check-Up Kid',
+      time: '08 AM - 09 AM',
+      color: 'bg-amber-50 border border-amber-300 text-amber-800',
+      patient: 'Ali Raza',
+      doctor: 'Dr. Emily Johnson'
+    },
+    {
+      id: 3,
+      col: 'wed',
+      timeSlot: '10 AM',
+      title: 'Heart Check-Up',
+      time: '08 AM - 10 AM',
+      color: 'bg-emerald-50 border border-emerald-300 text-emerald-800',
+      patient: 'Usman Tariq',
+      doctor: 'Dr. Michael Lee'
+    },
+    {
+      id: 4,
+      col: 'thu',
+      timeSlot: '09 AM',
+      title: 'Physical Control Health',
+      time: '09 AM → 11:00 AM',
+      color: 'bg-blue-600 border border-blue-700 text-white shadow-lg',
+      isPrimaryActive: true,
+      patient: 'Ayesha Khan',
+      doctor: 'Dr. Sarah Khan'
+    },
+    {
+      id: 5,
+      col: 'tue',
+      timeSlot: '10 AM',
+      title: 'Body Condition',
+      time: '10 AM - 11 AM',
+      color: 'bg-lime-50 border border-lime-300 text-lime-800',
+      patient: 'Bilal Ahmed',
+      doctor: 'Dr. Ayesha Tariq'
+    },
+    {
+      id: 6,
+      col: 'wed',
+      timeSlot: '11 AM',
+      title: 'Check Your Teeth',
+      time: '10 AM - 11 AM',
+      color: 'bg-rose-50 border border-rose-300 text-rose-800',
+      patient: 'Fatima Ali',
+      doctor: 'Dr. Sarah Khan'
+    },
+    {
+      id: 7,
+      col: 'sat',
+      timeSlot: '09 AM',
+      title: 'Check-Up',
+      time: '09 AM - 10 AM',
+      color: 'bg-sky-50 border border-sky-300 text-sky-800',
+      patient: 'Zainab Bibi',
+      doctor: 'Dr. Michael Lee'
+    },
+    {
+      id: 8,
+      col: 'wed',
+      timeSlot: '12 AM',
+      title: 'Check-Up Kid',
+      time: '12 AM - 13 AM',
+      color: 'bg-lime-50 border border-lime-300 text-lime-800',
+      patient: 'Ahmed Khan',
+      doctor: 'Dr. Emily Johnson'
+    },
+    {
+      id: 9,
+      col: 'fri',
+      timeSlot: '12 AM',
+      title: 'Check-Up',
+      time: '12 AM - 13 AM',
+      color: 'bg-purple-50 border border-purple-300 text-purple-800',
+      patient: 'Hina Malik',
+      doctor: 'Dr. Sarah Khan'
+    }
   ];
 
-  // Color mapping by treatment category
-  const getTreatmentColor = (name) => {
-    const n = (name || '').toLowerCase();
-    if (n.includes('laser')) return 'bg-purple-500/15 border-purple-500/30 text-purple-700 dark:text-purple-300';
-    if (n.includes('hydra') || n.includes('facial')) return 'bg-teal-500/15 border-teal-500/30 text-teal-700 dark:text-teal-300';
-    if (n.includes('botox') || n.includes('inject')) return 'bg-rose-500/15 border-rose-500/30 text-rose-700 dark:text-rose-300';
-    if (n.includes('carbon')) return 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300';
-    return 'bg-blue-500/15 border-blue-500/30 text-blue-700 dark:text-blue-300';
-  };
-
-  // Filtered Appointments
-  const filteredAppointments = appointments.filter(appt => {
-    if (selectedDoctorFilter === 'all') return true;
-    return appt.doctor_id === parseInt(selectedDoctorFilter);
-  });
-
-  const handleSaveBooking = (e) => {
-    e.preventDefault();
-    const targetPatient = patients.find(p => p.id === parseInt(patientId)) || patients[0];
-    const targetDoctor = doctors.find(d => d.id === parseInt(doctorId)) || doctors[0];
-
-    const newAppt = {
-      id: Date.now(),
-      customer_id: targetPatient.id,
-      customer_name: targetPatient.name,
-      customer_phone: targetPatient.phone,
-      doctor_id: targetDoctor.id,
-      doctor_name: targetDoctor.name,
-      treatment_name: treatmentName,
-      appointment_time: `${bookingDate}T${bookingTime}`,
-      duration_minutes: 45,
-      source: 'reception',
-      status: 'confirmed',
-      notes: bookingNotes
-    };
-
-    if (onAddAppointment) onAddAppointment(newAppt);
-    setIsNewBookingOpen(false);
+  const handleSaveSchedule = () => {
+    setActivePopoverAppt(null);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       
-      {/* Top Header Controls (Youcare Style) */}
-      <div className="flex flex-wrap items-center justify-between gap-4 medical-card p-4">
+      {/* 1. TOP TITLE & ACTION ROW (Youcare Style) */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Appointment & Calendar Schedule</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Manage daily patient slots, doctor availability, and clinic rooms</p>
+          <h1 className="text-2xl font-extrabold text-blue-600 tracking-tight">Appointment</h1>
         </div>
 
         <div className="flex items-center space-x-2.5">
-          {/* View Mode Toggle */}
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-semibold">
-            <button
-              onClick={() => setViewMode('day')}
-              className={`px-3 py-1 rounded-lg transition ${viewMode === 'day' ? 'bg-white dark:bg-slate-700 shadow-sm text-teal-600 dark:text-teal-300' : 'text-slate-500 dark:text-slate-400'}`}
-            >
-              Day
-            </button>
-            <button
-              onClick={() => setViewMode('week')}
-              className={`px-3 py-1 rounded-lg transition ${viewMode === 'week' ? 'bg-white dark:bg-slate-700 shadow-sm text-teal-600 dark:text-teal-300' : 'text-slate-500 dark:text-slate-400'}`}
-            >
-              Week
-            </button>
-            <button
-              onClick={() => setViewMode('month')}
-              className={`px-3 py-1 rounded-lg transition ${viewMode === 'month' ? 'bg-white dark:bg-slate-700 shadow-sm text-teal-600 dark:text-teal-300' : 'text-slate-500 dark:text-slate-400'}`}
-            >
-              Month
-            </button>
-          </div>
-
-          {/* Book Appointment Action */}
           <button
-            onClick={() => setIsNewBookingOpen(true)}
-            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white shadow-md shadow-teal-500/20 transition"
+            onClick={() => setIsCheckNewOpen(true)}
+            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/25 transition"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Book New Appointment</span>
+            <span>+ Check new</span>
           </button>
         </div>
       </div>
 
-      {/* Main Dual-Column Calendar Grid */}
+      {/* 2. SUB-TOOLBAR (Filter, Monthly, Download Data, Search, Layout) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 docu-card p-3">
+        <div className="flex items-center space-x-2">
+          <button className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+            <Filter className="w-3.5 h-3.5" />
+            <span>Filter</span>
+          </button>
+
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 bg-white cursor-pointer"
+          >
+            <option value="Monthly">Monthly</option>
+            <option value="Weekly">Weekly</option>
+            <option value="Daily">Daily</option>
+          </select>
+
+          <button className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+            <Download className="w-3.5 h-3.5" />
+            <span>Download Data</span>
+          </button>
+        </div>
+
+        <div className="flex items-center space-x-3 text-xs text-slate-600">
+          <button className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
+            <Search className="w-4 h-4" />
+          </button>
+          <span className="cursor-pointer hover:text-blue-600">Support</span>
+          <span className="cursor-pointer hover:text-blue-600">Content Layout</span>
+        </div>
+      </div>
+
+      {/* 3. DUAL-COLUMN APPOINTMENT CALENDAR GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* LEFT SIDEBAR (4 Cols): Mini Month Picker + Doctor Availabilities */}
+        {/* LEFT COLUMN (4 Cols): Mini Calendar + Doctor Appointment List */}
         <div className="lg:col-span-4 space-y-5">
           
-          {/* Mini Calendar Picker Card */}
-          <div className="medical-card p-5 space-y-4">
+          {/* Mini Month Grid */}
+          <div className="docu-card p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-sm text-slate-900 dark:text-white">August / September 2026</span>
+              <h3 className="font-bold text-sm text-slate-900">Appointment Calendar</h3>
               <div className="flex space-x-1">
-                <button className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
-                  <ChevronLeft className="w-4 h-4" />
+                <button className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs">
+                  <ChevronLeft className="w-3 h-3" />
                 </button>
-                <button className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
-                  <ChevronRight className="w-4 h-4" />
+                <button className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs">
+                  <ChevronRight className="w-3 h-3" />
                 </button>
               </div>
             </div>
 
             {/* Days Header */}
-            <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-400">
-              <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-slate-400">
+              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
             </div>
 
-            {/* Dates Grid */}
-            <div className="grid grid-cols-7 gap-1 text-center text-xs">
-              {[25, 26, 27, 28, 29, 30].map(d => (
-                <span key={d} className="p-2 text-slate-300 dark:text-slate-600">{d}</span>
+            {/* Numbers */}
+            <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium">
+              {[1, 2, 3, 4].map(d => (
+                <span key={d} className="p-2 text-slate-700">{d}</span>
               ))}
-              {[31, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map(d => (
-                <button
-                  key={d}
-                  onClick={() => setSelectedDate(d)}
-                  className={`p-2 rounded-xl font-semibold transition ${
-                    selectedDate === d
-                      ? 'bg-teal-500 text-white shadow-md shadow-teal-500/30'
-                      : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Doctor Schedule List (WellNest / Youcare Style) */}
-          <div className="medical-card p-5 space-y-3.5">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-xs text-slate-900 dark:text-white uppercase tracking-wider">
-                Specialists on Duty
-              </h3>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">
-                All Available
+              {/* Active Circle on 5 */}
+              <span className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center mx-auto shadow-md">
+                5
               </span>
-            </div>
-
-            <div className="space-y-2.5">
-              {doctors.map(doc => (
-                <div
-                  key={doc.id}
-                  onClick={() => setSelectedDoctorFilter(selectedDoctorFilter === String(doc.id) ? 'all' : String(doc.id))}
-                  className={`p-3 rounded-xl border transition cursor-pointer flex items-center justify-between ${
-                    selectedDoctorFilter === String(doc.id)
-                      ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-500/50'
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 border-slate-100 dark:border-white/5'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2.5">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-teal-500 to-cyan-400 flex items-center justify-center font-bold text-xs text-white shadow-sm">
-                      {doc.name.split(' ')[1]?.[0] || 'D'}
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-white">{doc.name}</div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">{doc.designation}</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] font-mono text-slate-600 dark:text-slate-300 font-semibold">
-                      {doc.shift_start} - {doc.shift_end}
-                    </span>
-                  </div>
-                </div>
+              {[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31].map(d => (
+                <span key={d} className="p-2 text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer">{d}</span>
               ))}
             </div>
           </div>
 
-          {/* Sync Status Badge */}
-          <div className="medical-card p-4 bg-gradient-to-br from-teal-500/5 to-cyan-500/5 border-teal-500/20 flex items-center space-x-3">
-            <CheckCircle2 className="w-5 h-5 text-teal-500 shrink-0" />
-            <div>
-              <div className="text-xs font-bold text-slate-900 dark:text-white">Google Calendar Auto-Sync</div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400">All bookings update live without double-booking</div>
+          {/* Doctor Appointment List */}
+          <div className="docu-card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-slate-900">Doctor Appointment List</h3>
+              <MoreHorizontal className="w-4 h-4 text-slate-400" />
             </div>
+
+            <div className="space-y-3">
+              {/* Doctor 1 */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition">
+                <div className="flex items-center space-x-3">
+                  <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-700 text-xs">
+                    EJ
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900">Dr. Emily Johnson</div>
+                    <div className="text-[11px] text-blue-600 font-medium">Pediatrician</div>
+                  </div>
+                </div>
+                <div className="text-right text-[11px] text-slate-500 font-mono flex items-center space-x-1">
+                  <Clock className="w-3 h-3 text-slate-400" />
+                  <span>10:00 - 11:00</span>
+                </div>
+              </div>
+
+              {/* Doctor 2 */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition">
+                <div className="flex items-center space-x-3">
+                  <div className="w-9 h-9 rounded-full bg-teal-100 flex items-center justify-center font-bold text-teal-700 text-xs">
+                    ML
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900">Dr. Michael Lee</div>
+                    <div className="text-[11px] text-teal-600 font-medium">Dermatologist</div>
+                  </div>
+                </div>
+                <div className="text-right text-[11px] text-slate-500 font-mono flex items-center space-x-1">
+                  <Clock className="w-3 h-3 text-slate-400" />
+                  <span>11:00 - 12:00</span>
+                </div>
+              </div>
+            </div>
+
+            <button className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow-md transition">
+              See All
+            </button>
           </div>
 
         </div>
 
-        {/* RIGHT MAIN VIEW (8 Cols): Time Slots & Weekly Agenda Grid */}
-        <div className="lg:col-span-8 medical-card p-5 space-y-4">
+        {/* RIGHT COLUMN (8 Cols): Interactive Time-Blocked Week Grid */}
+        <div className="lg:col-span-8 docu-card p-5 space-y-4 relative">
           
-          {/* Week Days Header Tabs */}
-          <div className="grid grid-cols-7 gap-2 pb-3 border-b border-slate-200 dark:border-white/10">
-            {weekDays.map(item => (
-              <div
-                key={item.date}
-                onClick={() => setSelectedDate(item.date)}
-                className={`p-2.5 rounded-xl text-center cursor-pointer transition ${
-                  selectedDate === item.date
-                    ? 'bg-teal-500 text-white shadow-md shadow-teal-500/25'
-                    : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'
-                }`}
-              >
-                <div className="text-[10px] uppercase font-semibold">{item.dayName}</div>
-                <div className="text-base font-black font-mono mt-0.5">{item.date}</div>
+          {/* Calendar Top Header */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div className="flex items-center space-x-3">
+              <span className="font-extrabold text-base text-slate-900">Agustus 2026</span>
+              <button className="px-3 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">
+                Today
+              </button>
+              <div className="flex space-x-1 text-slate-400">
+                <ChevronLeft className="w-4 h-4 cursor-pointer hover:text-slate-700" />
+                <ChevronRight className="w-4 h-4 cursor-pointer hover:text-slate-700" />
               </div>
-            ))}
-          </div>
-
-          {/* Time Slot Rows with Patient Appointment Cards */}
-          <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
-            {timeSlots.map((time, idx) => {
-              // Find matching appointment for this slot
-              const matchingAppts = filteredAppointments.filter(a => {
-                if (!a.appointment_time) return false;
-                return a.appointment_time.includes(time.split(' ')[0]) || (idx === 1 && a.id === 1) || (idx === 3 && a.id === 2);
-              });
-
-              return (
-                <div key={time} className="flex items-start space-x-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
-                  {/* Time Column */}
-                  <div className="w-20 pt-1 text-right font-mono text-xs font-semibold text-slate-400 shrink-0">
-                    {time}
-                  </div>
-
-                  {/* Slot Cards Container */}
-                  <div className="flex-1 space-y-2">
-                    {matchingAppts.length > 0 ? (
-                      matchingAppts.map(appt => (
-                        <div
-                          key={appt.id}
-                          onClick={() => setActiveAppointmentDetail(appt)}
-                          className={`p-3 rounded-xl border cursor-pointer transition shadow-sm hover:scale-[1.01] ${getTreatmentColor(appt.treatment_name)}`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-xs">{appt.treatment_name}</span>
-                            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-white/50 dark:bg-black/30 font-semibold">
-                              {appt.source || 'Confirmed'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-[11px] mt-1.5 opacity-90">
-                            <span className="flex items-center space-x-1">
-                              <User className="w-3 h-3" />
-                              <strong className="font-semibold">{appt.customer_name}</strong> ({appt.customer_phone || '0300-1234567'})
-                            </span>
-                            <span className="flex items-center space-x-1">
-                              <Stethoscope className="w-3 h-3" />
-                              <span>{appt.doctor_name || 'Dr. Sarah Khan'}</span>
-                            </span>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div
-                        onClick={() => {
-                          setBookingTime(time);
-                          setIsNewBookingOpen(true);
-                        }}
-                        className="py-3 px-4 border border-dashed border-slate-200 dark:border-white/10 rounded-xl text-center text-xs text-slate-400 hover:border-teal-500 hover:text-teal-600 dark:hover:text-teal-400 cursor-pointer transition"
-                      >
-                        + Available Slot (Click to Book)
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* MODAL 1: Book New Appointment (Youcare Style Popover) */}
-      {isNewBookingOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="medical-card p-6 max-w-md w-full shadow-2xl space-y-4 border border-slate-200 dark:border-white/20">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center space-x-2">
-                <CalendarIcon className="w-4 h-4 text-teal-500" />
-                <span>Schedule New Patient Visit</span>
-              </h3>
-              <button onClick={() => setIsNewBookingOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white">✕</button>
             </div>
 
-            <form onSubmit={handleSaveBooking} className="space-y-3 text-xs">
-              <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300">Select Patient *</label>
-                <select
-                  value={patientId}
-                  onChange={(e) => setPatientId(e.target.value)}
-                  className="w-full glass-input text-xs mt-1"
-                >
-                  {patients.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.phone}) — MRN: {p.mrn}
-                    </option>
-                  ))}
-                </select>
+            <div className="flex items-center space-x-3 text-xs text-slate-500">
+              <span className="px-2.5 py-1 rounded-md bg-slate-100 font-medium">None</span>
+              <span className="px-2.5 py-1 rounded-md bg-slate-100 font-medium">Priority</span>
+              <span className="px-2.5 py-1 rounded-md bg-slate-100 font-medium">Deadline</span>
+              <Video className="w-4 h-4 text-slate-400 cursor-pointer" />
+              <Share2 className="w-4 h-4 text-slate-400 cursor-pointer" />
+            </div>
+          </div>
+
+          {/* Time-grid Table */}
+          <div className="relative overflow-x-auto">
+            
+            {/* Days Row */}
+            <div className="grid grid-cols-8 gap-2 text-center text-xs font-bold text-slate-500 border-b border-slate-100 pb-2">
+              <span className="text-[10px] text-slate-400">GMT+0</span>
+              {columns.map(c => (
+                <span key={c.id} className={c.isToday ? 'text-blue-600' : ''}>
+                  {c.label}
+                </span>
+              ))}
+            </div>
+
+            {/* Time Blocks Grid */}
+            <div className="space-y-4 pt-4 relative min-h-[460px]">
+              
+              {/* Current Time Indicator Blue Line (at 10 AM) */}
+              <div className="absolute top-28 left-0 right-0 border-t border-dashed border-blue-500 flex items-center z-10 pointer-events-none">
+                <div className="w-2.5 h-2.5 rounded-full bg-blue-600 -ml-1"></div>
               </div>
 
-              <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300">Select Doctor / Aesthetician *</label>
-                <select
-                  value={doctorId}
-                  onChange={(e) => setDoctorId(e.target.value)}
-                  className="w-full glass-input text-xs mt-1"
-                >
-                  {doctors.map(d => (
-                    <option key={d.id} value={d.id}>
-                      {d.name} ({d.designation})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {hours.map(h => (
+                <div key={h} className="grid grid-cols-8 gap-2 items-start min-h-[90px] border-b border-slate-50">
+                  {/* Hour Label */}
+                  <span className="text-[11px] font-bold text-slate-400 text-center pt-1 font-mono">
+                    {h}
+                  </span>
 
-              <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300">Procedure / Service *</label>
-                <select
-                  value={treatmentName}
-                  onChange={(e) => setTreatmentName(e.target.value)}
-                  className="w-full glass-input text-xs mt-1"
-                >
-                  <option value="HydraFacial Deluxe">HydraFacial Deluxe (PKR 6,000)</option>
-                  <option value="Full Body Laser Hair Reduction">Full Body Laser Hair Removal (PKR 7,500)</option>
-                  <option value="Carbon Laser Peel (Hollywood Facial)">Carbon Laser Peel (PKR 5,000)</option>
-                  <option value="Botox Anti-Aging Consultation">Botox Anti-Aging Consultation (PKR 18,000)</option>
-                  <option value="PRP Vampire Facial with Microneedling">PRP Vampire Facial (PKR 12,000)</option>
-                </select>
-              </div>
+                  {/* 7 Day Cells */}
+                  {columns.map(c => {
+                    // Match events
+                    const event = scheduleEvents.find(e => e.col === c.id && e.timeSlot === h);
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">Date</label>
-                  <input
-                    type="date"
-                    value={bookingDate}
-                    onChange={(e) => setBookingDate(e.target.value)}
-                    className="w-full glass-input text-xs mt-1"
-                  />
+                    return (
+                      <div key={c.id} className="min-h-[80px] p-0.5">
+                        {event && (
+                          <div
+                            onClick={() => setActivePopoverAppt(event)}
+                            className={`p-2 rounded-xl text-left cursor-pointer transition ${event.color} ${
+                              event.isPrimaryActive ? 'h-[140px] z-20 relative' : ''
+                            }`}
+                          >
+                            <div className="text-[11px] font-bold leading-tight">{event.title}</div>
+                            <div className="text-[9px] opacity-80 mt-1 font-mono">{event.time}</div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-                <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">Time Slot</label>
-                  <select
-                    value={bookingTime}
-                    onChange={(e) => setBookingTime(e.target.value)}
-                    className="w-full glass-input text-xs mt-1"
-                  >
-                    {timeSlots.map(t => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
+              ))}
+
+            </div>
+
+          </div>
+
+          {/* 4. INTERACTIVE SCHEDULE POPOVER MODAL ("Edit Schedule" Youcare Style) */}
+          {activePopoverAppt && (
+            <div className="absolute top-28 right-16 z-30 w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 space-y-3.5 text-xs animate-in fade-in">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span className="font-bold text-slate-900">Edit Schedule</span>
+                <button onClick={() => setActivePopoverAppt(null)} className="text-slate-400 hover:text-slate-600">✕</button>
               </div>
 
-              <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300">Clinical Notes / Pre-instructions</label>
+              <div className="space-y-1">
                 <input
                   type="text"
-                  value={bookingNotes}
-                  onChange={(e) => setBookingNotes(e.target.value)}
-                  placeholder="e.g. Shaving 24h prior, no active tan"
-                  className="w-full glass-input text-xs mt-1"
+                  value={scheduleTitle}
+                  onChange={(e) => setScheduleTitle(e.target.value)}
+                  className="w-full font-bold text-slate-900 text-xs outline-none border-b border-transparent focus:border-blue-500 py-1"
+                />
+                <input
+                  type="text"
+                  placeholder="Add Description"
+                  className="w-full text-slate-400 text-[11px] outline-none"
                 />
               </div>
 
-              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100 dark:border-white/10">
+              <div className="flex items-center justify-between text-[11px] text-slate-600 pt-1">
+                <div className="flex items-center space-x-1.5">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{scheduleTime}</span>
+                </div>
+                <RefreshCw className="w-3 h-3 text-slate-400 cursor-pointer" />
+              </div>
+
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[10px] text-slate-400 font-semibold uppercase">Add Guests</span>
+                <div className="flex items-center space-x-2">
+                  <div className="flex -space-x-1.5">
+                    <div className="w-6 h-6 rounded-full bg-blue-500 text-white font-bold text-[9px] flex items-center justify-center border-2 border-white">
+                      E
+                    </div>
+                    <div className="w-6 h-6 rounded-full bg-teal-500 text-white font-bold text-[9px] flex items-center justify-center border-2 border-white">
+                      A
+                    </div>
+                  </div>
+                  <span className="text-[11px] text-slate-600 font-medium">{guestCount}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
                 <button
-                  type="button"
-                  onClick={() => setIsNewBookingOpen(false)}
-                  className="px-3 py-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-xs"
+                  onClick={() => setActivePopoverAppt(null)}
+                  className="px-3 py-1 text-slate-500 hover:bg-slate-100 rounded-lg text-xs font-semibold"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
-                  className="px-4 py-1.5 font-bold bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-xs shadow-md"
+                  onClick={handleSaveSchedule}
+                  className="px-4 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs shadow"
                 >
-                  Confirm & Sync Calendar
+                  Save
                 </button>
               </div>
-            </form>
-          </div>
+            </div>
+          )}
+
         </div>
-      )}
 
-      {/* MODAL 2: View Appointment Detail */}
-      {activeAppointmentDetail && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="medical-card p-6 max-w-md w-full shadow-2xl space-y-4 border border-slate-200 dark:border-white/20">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center space-x-2">
-                <Sparkles className="w-4 h-4 text-teal-500" />
-                <span>Appointment Details</span>
-              </h3>
-              <button onClick={() => setActiveAppointmentDetail(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white">✕</button>
-            </div>
-
-            <div className="space-y-2.5 text-xs text-slate-700 dark:text-slate-300">
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-1">
-                <div className="text-sm font-bold text-slate-900 dark:text-white">{activeAppointmentDetail.customer_name}</div>
-                <div className="text-slate-500 dark:text-slate-400">Phone: {activeAppointmentDetail.customer_phone || '0300-1234567'}</div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-lg">
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Treatment</span>
-                  <div className="font-bold text-teal-600 dark:text-teal-400">{activeAppointmentDetail.treatment_name}</div>
-                </div>
-                <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-lg">
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Specialist</span>
-                  <div className="font-bold text-slate-900 dark:text-white">{activeAppointmentDetail.doctor_name}</div>
-                </div>
-              </div>
-
-              <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-lg">
-                <span className="text-[10px] text-slate-400 uppercase font-semibold">Scheduled Time</span>
-                <div className="font-semibold text-slate-800 dark:text-slate-200">
-                  {new Date(activeAppointmentDetail.appointment_time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                </div>
-              </div>
-
-              {activeAppointmentDetail.notes && (
-                <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-lg">
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold">Notes</span>
-                  <div className="text-slate-600 dark:text-slate-300">{activeAppointmentDetail.notes}</div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-white/10">
-              <button
-                onClick={() => setActiveAppointmentDetail(null)}
-                className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-semibold"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
 
     </div>
   );

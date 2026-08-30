@@ -1,6 +1,6 @@
 /* ==============================================================================
-   SkinLab AI - Professional Medical UI/UX Design System
-   Inspired by WellNest, DocuVerse, and Youcare Medical Dashboards
+   SkinLab AI - Professional Medical Dashboard Stylesheet
+   Faithfully implementing DocuVerse & Youcare UI/UX Design Systems
    ============================================================================== */
 
 @tailwind base;
@@ -8,136 +8,87 @@
 @tailwind utilities;
 
 :root {
-  --bg-app: #f8fafc;
-  --bg-surface: #ffffff;
+  --bg-app: #f1f5f9;
+  --bg-card: #ffffff;
   --bg-sidebar: #ffffff;
   --text-main: #0f172a;
   --text-muted: #64748b;
   --border-subtle: #e2e8f0;
-  --primary-emerald: #0d9488;
-  --primary-mint: #14b8a6;
+  --accent-primary: #059669; /* DocuVerse Emerald Green */
+  --accent-blue: #2563eb;    /* Youcare Vibrant Blue */
   --accent-cyan: #06b6d4;
-  --accent-blue: #3b82f6;
-  --accent-purple: #8b5cf6;
-}
-
-.dark {
-  --bg-app: #090d16;
-  --bg-surface: #0f172a;
-  --bg-sidebar: #0b1120;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --border-subtle: rgba(255, 255, 255, 0.08);
+  --accent-purple: #9333ea;
+  --accent-amber: #d97706;
 }
 
 body {
-  background-color: var(--bg-app);
-  color: var(--text-main);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #f1f5f9;
+  color: #0f172a;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   min-height: 100vh;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Premium Card & Widget Styles */
-.medical-card {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
+/* White Card Container (DocuVerse & Youcare Style) */
+.docu-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 1.25rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+}
+
+.docu-card-interactive {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1.25rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03);
   transition: all 0.2s ease;
 }
 
-.medical-card:hover {
-  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.06);
+.docu-card-interactive:hover {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.06);
+  border-color: #cbd5e1;
 }
 
-/* Glass & Neon Accents */
-.glass-input {
-  background-color: var(--bg-app);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-main);
-  border-radius: 0.75rem;
-  padding: 0.5rem 0.875rem;
-  font-size: 0.8125rem;
-  outline: none;
+/* Sidebar Active Item Pill */
+.sidebar-active-item {
+  background: #0f172a;
+  color: #ffffff !important;
+  border-radius: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+}
+
+.sidebar-item {
+  color: #64748b;
+  border-radius: 0.875rem;
+  font-weight: 500;
   transition: all 0.15s ease;
 }
 
-.glass-input:focus {
-  border-color: var(--primary-mint);
-  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15);
+.sidebar-item:hover {
+  background: #f8fafc;
+  color: #0f172a;
 }
 
-/* Pill Tabs & Badges */
-.nav-pill-active {
-  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
-  color: #ffffff;
-  font-weight: 600;
-  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.25);
-}
-
-.badge-mint {
-  background-color: rgba(20, 184, 166, 0.1);
-  color: #0f766e;
-  border: 1px solid rgba(20, 184, 166, 0.25);
-}
-
-.dark .badge-mint {
-  background-color: rgba(20, 184, 166, 0.15);
-  color: #2dd4bf;
-  border-color: rgba(20, 184, 166, 0.3);
-}
-
-.badge-rose {
-  background-color: rgba(244, 63, 94, 0.1);
-  color: #e11d48;
-  border: 1px solid rgba(244, 63, 94, 0.25);
-}
-
-.dark .badge-rose {
-  background-color: rgba(244, 63, 94, 0.15);
-  color: #fb7185;
-  border-color: rgba(244, 63, 94, 0.3);
-}
-
-.badge-blue {
-  background-color: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
-  border: 1px solid rgba(59, 130, 246, 0.25);
-}
-
-.dark .badge-blue {
-  background-color: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-  border-color: rgba(59, 130, 246, 0.3);
-}
-
-.badge-purple {
-  background-color: rgba(139, 92, 246, 0.1);
-  color: #7c3aed;
-  border: 1px solid rgba(139, 92, 246, 0.25);
-}
-
-.dark .badge-purple {
-  background-color: rgba(139, 92, 246, 0.15);
-  color: #c084fc;
-  border-color: rgba(139, 92, 246, 0.3);
-}
-
-/* Custom Minimal Scrollbar */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+/* Vertical Mini Bar Graph (DocuVerse Metric Cards) */
+.mini-bar {
+  width: 2.5px;
   border-radius: 9999px;
+  transition: height 0.3s ease;
 }
-.dark ::-webkit-scrollbar-thumb {
-  background: #334155;
+
+/* Hatch Pattern for Demographic Chart */
+.hatch-pattern {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0.2) 6px,
+    transparent 6px,
+    transparent 12px
+  );
 }
 
 /* Print Rules */

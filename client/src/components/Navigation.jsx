@@ -1,7 +1,7 @@
 /**
  * ==============================================================================
- * SkinLab AI - Professional Medical Navigation Sidebar & Header
- * Inspired by WellNest, DocTrack, Youcare, and Deli-Clinico UI Systems
+ * SkinLab AI - Navigation Sidebar & Top Header Bar
+ * Pixel-Perfect Implementation of DocuVerse Medical UI/UX Design System
  * ==============================================================================
  */
 
@@ -10,179 +10,181 @@
 import React from 'react';
 import { 
   LayoutDashboard, 
-  Calendar as CalendarIcon, 
-  ShoppingCart, 
-  Users, 
-  Bot, 
-  PhoneCall, 
-  MessageSquare, 
-  BarChart3, 
-  Boxes, 
   UserCheck, 
-  Truck, 
+  Users, 
+  Calendar as CalendarIcon, 
+  CreditCard, 
+  BarChart3, 
   Settings, 
-  Wifi, 
-  WifiOff, 
+  Search, 
+  Bell, 
+  UserPlus, 
+  CalendarDays, 
+  FileText, 
   Sparkles,
-  RefreshCw,
-  Sun,
-  Moon,
-  Search,
-  Bell,
-  ShieldCheck
+  X,
+  Plus
 } from 'lucide-react';
 
 export default function Navigation({ 
   activeTab, 
   setActiveTab, 
   currentRole, 
-  setCurrentRole, 
-  isOffline, 
-  setIsOffline, 
-  outboxCount, 
-  onSyncOutbox,
-  isDarkMode,
-  setIsDarkMode
+  setCurrentRole,
+  isOffline,
+  setIsOffline
 }) {
   const navItems = [
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'calendar', label: 'Appointments', icon: CalendarIcon, badge: 'Live' },
-    { id: 'pos', label: 'POS Billing', icon: ShoppingCart, badge: 'Desk' },
-    { id: 'prm', label: 'Patients (PRM)', icon: Users },
-    { id: 'ai-doctor', label: 'Doctor AI (GPT)', icon: Bot, badge: 'RAG' },
-    { id: 'voice-agent', label: 'AI Voice Booking', icon: PhoneCall, badge: '24/7' },
-    { id: 'whatsapp', label: 'WhatsApp Hub', icon: MessageSquare },
-    { id: 'reports', label: 'Analytics & ROI', icon: BarChart3 },
-    { id: 'catalog', label: 'Services & Barcodes', icon: Boxes },
-    { id: 'hrm', label: 'HRM & Shifts', icon: UserCheck },
-    { id: 'purchases', label: 'SRM & Refunds', icon: Truck },
-    { id: 'settings', label: 'Settings & Backups', icon: Settings },
-  ];
-
-  const roles = [
-    { id: 'admin', label: 'Admin / Clinic Owner' },
-    { id: 'doctor', label: 'Dr. Sarah Khan (Specialist)' },
-    { id: 'manager', label: 'Clinic Manager' },
-    { id: 'cashier', label: 'Front Desk Cashier' },
+    { id: 'hrm', label: 'Doctor', icon: UserCheck },
+    { id: 'prm', label: 'Patients', icon: Users },
+    { id: 'calendar', label: 'Appointments', icon: CalendarIcon },
+    { id: 'pos', label: 'Billing', icon: CreditCard },
+    { id: 'reports', label: 'Reports', icon: BarChart3 },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (
     <>
-      {/* TOP HEADER BAR (WellNest / Youcare Style) */}
-      <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-white/10 px-6 py-3 transition-colors">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          
-          {/* Brand Logo & Version Pill */}
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('overview')}>
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-teal-500 to-cyan-400 flex items-center justify-center text-white shadow-md shadow-teal-500/25">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-extrabold text-lg text-slate-900 dark:text-white tracking-tight">SkinLab</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
-                  v2.0 PRO
-                </span>
+      {/* 1. FIXED LEFT SIDEBAR (DocuVerse Style) */}
+      <aside className="w-64 fixed left-0 top-0 bottom-0 bg-white border-r border-slate-200 z-50 flex flex-col justify-between p-5 overflow-y-auto">
+        
+        <div className="space-y-6">
+          {/* Brand Logo */}
+          <div className="flex items-center space-x-3 cursor-pointer pl-2" onClick={() => setActiveTab('overview')}>
+            <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white shadow-sm">
+              {/* DocuVerse 4-leaf cross icon */}
+              <div className="grid grid-cols-2 gap-0.5">
+                <div className="w-2 h-2 bg-white rounded-full"></div>
+                <div className="w-2 h-2 bg-white/70 rounded-full"></div>
+                <div className="w-2 h-2 bg-white/70 rounded-full"></div>
+                <div className="w-2 h-2 bg-white rounded-full"></div>
               </div>
-              <p className="text-[11px] text-slate-400">Aesthetic & Dermatology Operating System</p>
             </div>
+            <span className="font-extrabold text-lg text-slate-900 tracking-tight">DocuVerse</span>
           </div>
 
-          {/* Quick Search Bar */}
-          <div className="hidden md:flex items-center relative w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-            <input
-              type="text"
-              placeholder="Search patients, invoices, doctors..."
-              className="w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-xl pl-9 pr-4 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-teal-500 transition"
-            />
-          </div>
-
-          {/* Top Controls: Dark/Light Mode, Role Selector, PWA Offline Status */}
-          <div className="flex items-center space-x-3">
-            
-            {/* Dark / Light Mode Toggle Switch */}
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition"
-              title="Toggle Dark / Light Theme"
-            >
-              {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
-            </button>
-
-            {/* Offline PWA Toggle */}
-            <div className="flex items-center space-x-1.5 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-white/10">
-              <button
-                onClick={() => setIsOffline(!isOffline)}
-                className={`flex items-center space-x-1 text-xs px-2 py-0.5 rounded-lg transition ${
-                  isOffline 
-                    ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30' 
-                    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                }`}
-                title="Click to toggle offline mode simulation"
-              >
-                {isOffline ? <WifiOff className="w-3 h-3 mr-1 text-amber-500 animate-pulse" /> : <Wifi className="w-3 h-3 mr-1 text-emerald-500" />}
-                <span className="font-semibold">{isOffline ? 'Offline' : 'Online'}</span>
-              </button>
-
-              {outboxCount > 0 && (
+          {/* Navigation Menu */}
+          <nav className="space-y-1.5 pt-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
                 <button
-                  onClick={onSyncOutbox}
-                  className="flex items-center space-x-1 text-[10px] bg-teal-600 hover:bg-teal-500 text-white font-bold px-2 py-0.5 rounded-lg transition animate-bounce"
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center space-x-3 px-3.5 py-2.5 text-xs font-semibold transition ${
+                    isActive
+                      ? 'sidebar-active-item'
+                      : 'sidebar-item'
+                  }`}
                 >
-                  <RefreshCw className="w-2.5 h-2.5" />
-                  <span>Sync ({outboxCount})</span>
+                  <Icon className="w-4 h-4" />
+                  <span>{item.label}</span>
                 </button>
-              )}
-            </div>
-
-            {/* Role Switcher Pill */}
-            <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10">
-              <ShieldCheck className="w-4 h-4 text-teal-500" />
-              <select
-                value={currentRole}
-                onChange={(e) => setCurrentRole(e.target.value)}
-                className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
-              >
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-          </div>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Sub-Header Horizontal Tab Navigation (WellNest Pill Style) */}
-        <nav className="flex items-center space-x-1.5 overflow-x-auto pt-3 pb-1 no-scrollbar">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
-                  isActive
-                    ? 'nav-pill-active'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                }`}
+        {/* Bottom Section: User Profile & AI Health Update Card */}
+        <div className="space-y-4 pt-4 border-t border-slate-100">
+          
+          {/* User Profile Chip */}
+          <div className="flex items-center space-x-3 pl-1">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-rose-400 to-amber-300 overflow-hidden flex items-center justify-center font-bold text-white text-xs">
+              DR
+            </div>
+            <div>
+              <div className="text-xs font-bold text-slate-900 leading-tight">Darlene Robertson</div>
+              <div className="text-[10px] text-slate-400 font-mono">ID: 72630284</div>
+            </div>
+          </div>
+
+          {/* DocuVerse Floating AI Health Update Card */}
+          <div className="p-4 rounded-2xl bg-gradient-to-b from-emerald-50 via-teal-50 to-white border border-emerald-200/60 relative shadow-sm space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-xs text-slate-900">AI Health Update</span>
+              <button 
+                onClick={() => setActiveTab('ai-doctor')}
+                className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-[9px]"
               >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{item.label}</span>
-                {item.badge && (
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    isActive ? 'bg-white/25 text-white font-bold' : 'bg-teal-500/10 text-teal-600 dark:text-teal-400'
-                  }`}>
-                    {item.badge}
-                  </span>
-                )}
+                ✕
               </button>
-            );
-          })}
-        </nav>
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Advantages</span>
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                New AI engine improves diagnosis accuracy by 27%
+              </p>
+            </div>
+
+            {/* Wave Illustration Graphic */}
+            <div className="h-6 flex items-end">
+              <svg viewBox="0 0 100 20" className="w-full h-full">
+                <path d="M 0,15 Q 25,5 50,12 T 100,8" fill="none" stroke="#10b981" strokeWidth="2" />
+              </svg>
+            </div>
+
+            <button
+              onClick={() => setActiveTab('ai-doctor')}
+              className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs shadow-md transition"
+            >
+              Update Now
+            </button>
+          </div>
+
+        </div>
+
+      </aside>
+
+      {/* 2. TOP HEADER BAR (DocuVerse Style) */}
+      <header className="pl-64 sticky top-0 z-40 bg-[#f1f5f9]/90 backdrop-blur-md px-8 py-4 flex items-center justify-between">
+        
+        {/* Search Bar */}
+        <div className="relative w-96">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+          <input
+            type="text"
+            placeholder="Search"
+            className="w-full bg-white border border-slate-200 rounded-2xl pl-10 pr-4 py-2 text-xs text-slate-900 placeholder:text-slate-400 outline-none shadow-sm focus:border-emerald-500 transition"
+          />
+        </div>
+
+        {/* Right Header Actions */}
+        <div className="flex items-center space-x-3">
+          
+          {/* Notification Bell */}
+          <button className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 shadow-sm">
+            <Bell className="w-4 h-4" />
+          </button>
+
+          {/* Add User Icon */}
+          <button 
+            onClick={() => setActiveTab('prm')}
+            className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 shadow-sm"
+          >
+            <UserPlus className="w-4 h-4" />
+          </button>
+
+          {/* Date Picker Pill */}
+          <div className="flex items-center space-x-2 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm text-xs font-semibold text-slate-700">
+            <CalendarDays className="w-3.5 h-3.5 text-slate-500" />
+            <span>October 23, 2026</span>
+          </div>
+
+          {/* Primary Action Button (Green DocuVerse Pill) */}
+          <button
+            onClick={() => setActiveTab('pos')}
+            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/25 transition"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Generate Report</span>
+          </button>
+
+        </div>
+
       </header>
     </>
   );

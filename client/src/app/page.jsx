@@ -1,7 +1,7 @@
 /**
  * ==============================================================================
  * SkinLab AI - Main Single Page Application (SPA) Controller
- * Complete Modern UI/UX Layout with Interactive Calendar, Overview & POS
+ * Implementing DocuVerse & Youcare Medical UI/UX Design System
  * ==============================================================================
  */
 
@@ -25,10 +25,9 @@ import { api } from '@/lib/api';
 import { outboxManager } from '@/lib/outbox';
 
 export default function SkinLabApp() {
-  // Navigation & Theme States
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'calendar', 'pos', 'prm', 'ai-doctor', 'voice-agent', 'whatsapp', 'reports', 'catalog', 'hrm', 'purchases', 'settings'
-  const [currentRole, setCurrentRole] = useState('doctor'); // 'admin', 'doctor', 'manager', 'cashier'
-  const [isDarkMode, setIsDarkMode] = useState(false); // Default clean light theme like WellNest, togglable
+  // Navigation State
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'calendar', 'pos', 'prm', 'ai-doctor', 'hrm', 'reports', 'settings'
+  const [currentRole, setCurrentRole] = useState('doctor');
   const [isOffline, setIsOffline] = useState(false);
   const [outboxCount, setOutboxCount] = useState(0);
 
@@ -39,7 +38,6 @@ export default function SkinLabApp() {
   const [doctors, setDoctors] = useState([]);
   const [sales, setSales] = useState([]);
   const [appointments, setAppointments] = useState([]);
-  const [injectedSessionRemarks, setInjectedSessionRemarks] = useState('');
 
   // Initial Load from Python FastAPI Backend
   const refreshClinicData = async () => {
@@ -66,7 +64,7 @@ export default function SkinLabApp() {
         setAppointments(apptData.appointments);
       }
     } catch (e) {
-      console.warn("[App] Initial load error or backend starting up:", e);
+      console.warn("[App] Initial load from backend:", e);
     }
   };
 
@@ -81,7 +79,7 @@ export default function SkinLabApp() {
     if (isOffline) {
       outboxManager.enqueueAction('create_sale', salePayload);
       setOutboxCount(outboxManager.getPendingQueue().length);
-      alert('Application is in Offline Mode. Sale successfully queued in Outbox.');
+      alert('Sale saved in Offline Outbox.');
       return { success: true, sale: { ...salePayload, invoice_number: 'INV-OFFLINE-01', token_number: 'P-OFF' } };
     }
 
@@ -134,52 +132,25 @@ export default function SkinLabApp() {
     }
   };
 
-  // Handle Adding New Appointment
-  const handleAddAppointment = (newAppt) => {
-    setAppointments(prev => [newAppt, ...prev]);
-  };
-
-  // Sync Outbox Queue
-  const handleSyncOutbox = async () => {
-    const result = await outboxManager.flushQueue(api);
-    setOutboxCount(result.remainingCount);
-    await refreshClinicData();
-    alert(`Outbox Synced: ${result.syncedCount} records sent to server.`);
-  };
-
-  // Inject AI Note into POS Remarks
-  const handleInjectAINoteToPOS = (noteText) => {
-    setInjectedSessionRemarks(noteText);
-    setActiveTab('pos');
-  };
-
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'dark' : ''}`}>
-      <div className="bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 min-h-screen pb-16 transition-colors duration-200">
-        
-        {/* Navigation Bar */}
-        <Navigation
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          currentRole={currentRole}
-          setCurrentRole={setCurrentRole}
-          isOffline={isOffline}
-          setIsOffline={setIsOffline}
-          outboxCount={outboxCount}
-          onSyncOutbox={handleSyncOutbox}
-          isDarkMode={isDarkMode}
-          setIsDarkMode={setIsDarkMode}
-        />
+    <div className="min-h-screen bg-[#f1f5f9]">
+      
+      {/* 1. DocuVerse Sidebar & Header */}
+      <Navigation
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        currentRole={currentRole}
+        setCurrentRole={setCurrentRole}
+        isOffline={isOffline}
+        setIsOffline={setIsOffline}
+      />
 
-        {/* Main Content Area */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+      {/* 2. Main Content View Area (Padded for Left Sidebar) */}
+      <main className="pl-64 pr-8 pb-16 pt-2">
+        <div className="max-w-[1440px] mx-auto">
           
           {activeTab === 'overview' && (
             <OverviewDashboard
-              patients={patients}
-              doctors={doctors}
-              sales={sales}
-              appointments={appointments}
               onNavigate={setActiveTab}
             />
           )}
@@ -189,7 +160,7 @@ export default function SkinLabApp() {
               appointments={appointments}
               doctors={doctors}
               patients={patients}
-              onAddAppointment={handleAddAppointment}
+              onAddAppointment={(newAppt) => setAppointments(prev => [newAppt, ...prev])}
             />
           )}
 
@@ -213,46 +184,28 @@ export default function SkinLabApp() {
             />
           )}
 
-          {activeTab === 'ai-doctor' && (
-            <DoctorAssistant
-              patients={patients}
-              onInjectNotes={handleInjectAINoteToPOS}
-            />
-          )}
-
-          {activeTab === 'voice-agent' && (
-            <VoiceBookingAgent />
-          )}
-
-          {activeTab === 'whatsapp' && (
-            <WhatsAppHub
-              patients={patients}
-            />
+          {activeTab === 'hrm' && (
+            <StaffDirectory />
           )}
 
           {activeTab === 'reports' && (
             <AnalyticsDashboard />
           )}
 
-          {activeTab === 'catalog' && (
-            <ServicesMaster />
-          )}
-
-          {activeTab === 'hrm' && (
-            <StaffDirectory />
-          )}
-
-          {activeTab === 'purchases' && (
-            <SupplierPurchases sales={sales} />
-          )}
-
           {activeTab === 'settings' && (
             <ClinicSettings />
           )}
 
-        </main>
+          {activeTab === 'ai-doctor' && (
+            <DoctorAssistant
+              patients={patients}
+              onInjectNotes={(notes) => setActiveTab('pos')}
+            />
+          )}
 
-      </div>
+        </div>
+      </main>
+
     </div>
   );
 }
