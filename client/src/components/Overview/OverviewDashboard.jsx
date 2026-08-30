@@ -1,7 +1,7 @@
 /**
  * ==============================================================================
- * SkinLab AI - Executive Overview Dashboard
- * Pixel-Perfect Implementation of DocuVerse Medical UI/UX Architecture
+ * SkinLab AI - Executive Overview Dashboard (DocuVerse UI Clone)
+ * Pixel-Perfect match to DocuVerse Design Reference
  * ==============================================================================
  */
 
@@ -11,85 +11,127 @@ import React, { useState } from 'react';
 import { 
   Users, 
   UserCheck, 
-  Calendar as CalendarIcon, 
+  Calendar, 
   DollarSign, 
-  TrendingUp, 
   ArrowUpRight, 
-  ArrowDownRight,
-  ChevronRight,
-  Bookmark,
-  Plus,
-  ArrowUp,
+  ArrowDownRight, 
+  Search, 
+  Bell, 
+  UserPlus, 
+  FileText, 
+  MoreHorizontal, 
+  Bookmark, 
+  Plus, 
   Sparkles,
-  Clock,
-  MapPin
+  ChevronRight,
+  TrendingUp
 } from 'lucide-react';
 
-export default function OverviewDashboard({ onNavigate }) {
-  const [activeDateIndex, setActiveDateIndex] = useState(7); // Active date 19
-  const [activeTimeSlot, setActiveTimeSlot] = useState('12:00 PM');
+export default function OverviewDashboard({ patients = [], doctors = [], sales = [], onNavigate }) {
+  const [selectedDateIndex, setSelectedDateIndex] = useState(7); // 19 active
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState('12:00 PM');
 
-  // Dates row for Doctor Schedule widget
-  const dates = [
-    { day: 12, doc: 'D1' }, { day: 13, doc: 'D2' }, { day: 14, doc: 'D3' }, 
-    { day: 15, doc: 'D4' }, { day: 16, doc: 'D5' }, { day: 17, doc: 'D6' },
-    { day: 18, doc: 'D7' }, { day: 19, doc: 'D8' }, { day: 20, doc: 'D9' },
-    { day: 21, doc: 'D10' }, { day: 22, doc: 'D11' }, { day: 23, doc: 'D12' }, { day: 24, doc: 'D13' }
+  // Dates for doctor schedule row
+  const scheduleDates = [
+    { day: 12, hasDoc: false },
+    { day: 13, hasDoc: true, img: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=100&auto=format&fit=crop&q=80' },
+    { day: 14, hasDoc: false },
+    { day: 15, hasDoc: true, img: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=100&auto=format&fit=crop&q=80' },
+    { day: 16, hasDoc: true, img: 'https://images.unsplash.com/photo-1594824813583-b9b69b56f8f7?w=100&auto=format&fit=crop&q=80' },
+    { day: 17, hasDoc: false },
+    { day: 18, hasDoc: false },
+    { day: 19, hasDoc: true, active: true, img: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=100&auto=format&fit=crop&q=80' },
+    { day: 20, hasDoc: false },
+    { day: 21, hasDoc: true, img: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=100&auto=format&fit=crop&q=80' },
+    { day: 22, hasDoc: false },
+    { day: 23, hasDoc: true, img: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=100&auto=format&fit=crop&q=80' },
+    { day: 24, hasDoc: true, img: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=100&auto=format&fit=crop&q=80' },
   ];
 
   const timeSlots = [
-    '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', 
+    '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM',
     '02:00 PM', '03:00 PM', '04:00 PM', '06:00 PM'
   ];
 
   return (
     <div className="space-y-6">
       
+      {/* Top Header Bar (DocuVerse Style) */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        
+        {/* Search Pill */}
+        <div className="relative w-full sm:w-96">
+          <Search className="w-4 h-4 text-slate-400 absolute left-4 top-3" />
+          <input
+            type="text"
+            placeholder="Search patients, doctors, records..."
+            className="w-full bg-white border border-slate-200 rounded-full pl-11 pr-4 py-2.5 text-xs text-slate-800 outline-none shadow-sm focus:border-emerald-500 transition"
+          />
+        </div>
+
+        {/* Right Controls */}
+        <div className="flex items-center space-x-3">
+          <button className="p-2.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm transition">
+            <Bell className="w-4 h-4" />
+          </button>
+          <button className="p-2.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm transition">
+            <UserPlus className="w-4 h-4" />
+          </button>
+
+          {/* Date Indicator */}
+          <div className="flex items-center space-x-1.5 px-4 py-2 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-sm">
+            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <span>October 23, 2026</span>
+          </div>
+
+          {/* Green CTA Button */}
+          <button 
+            onClick={() => onNavigate('reports')}
+            className="flex items-center space-x-2 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Generate Report</span>
+          </button>
+        </div>
+
+      </div>
+
       {/* Title */}
-      <div>
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Overview</h1>
       </div>
 
-      {/* ROW 1: 4 DocuVerse Metric Stat Cards */}
+      {/* Row 1: 4 Metric Cards with Miniature Vertical Status Bars */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Card 1: Total Patients */}
         <div className="docu-card p-5 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex justify-between items-start">
             <div>
-              <span className="text-xs text-slate-400 font-medium">Total Patients</span>
+              <span className="text-xs font-semibold text-slate-400">Total Patients</span>
               <div className="text-2xl font-bold text-slate-900 mt-1">178</div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
+            <div className="p-2 rounded-full bg-slate-100 text-slate-600">
               <Users className="w-4 h-4" />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between text-[11px] font-semibold">
-              <span className="text-emerald-600">Active</span>
-              <span className="text-slate-400">Recovered</span>
+          <div className="space-y-1.5 pt-2 border-t border-slate-100">
+            <div className="flex justify-between text-[11px] text-slate-500">
+              <span>Active</span>
+              <span>Recovered</span>
             </div>
-
-            {/* Vertical Multi-Bar Graph */}
-            <div className="flex items-end space-x-[3px] h-8 pt-1">
-              {[...Array(16)].map((_, i) => (
-                <div
-                  key={i}
-                  className="mini-bar bg-emerald-500"
-                  style={{ height: `${20 + (i % 5) * 2}px` }}
-                />
+            <div className="flex items-center space-x-1">
+              {/* Green active mini bars */}
+              {Array.from({ length: 18 }).map((_, i) => (
+                <div key={i} className="mini-bar bar-green h-4" />
               ))}
-              {[...Array(8)].map((_, i) => (
-                <div
-                  key={i}
-                  className="mini-bar bg-slate-200"
-                  style={{ height: `${16 + (i % 3) * 3}px` }}
-                />
+              {/* Gray recovered mini bars */}
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="mini-bar bar-gray h-4" />
               ))}
             </div>
-
-            <div className="flex justify-between text-[10px] text-slate-400 font-mono pt-1">
+            <div className="flex justify-between text-[10px] font-mono text-slate-400 font-semibold pt-0.5">
               <span>142</span>
               <span>36</span>
             </div>
@@ -98,41 +140,32 @@ export default function OverviewDashboard({ onNavigate }) {
 
         {/* Card 2: Active Doctors */}
         <div className="docu-card p-5 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex justify-between items-start">
             <div>
-              <span className="text-xs text-slate-400 font-medium">Active Doctors</span>
+              <span className="text-xs font-semibold text-slate-400">Active Doctors</span>
               <div className="text-2xl font-bold text-slate-900 mt-1">33</div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
+            <div className="p-2 rounded-full bg-slate-100 text-slate-600">
               <UserCheck className="w-4 h-4" />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between text-[11px] font-semibold">
-              <span className="text-rose-500">Available</span>
-              <span className="text-slate-400">On Leave</span>
+          <div className="space-y-1.5 pt-2 border-t border-slate-100">
+            <div className="flex justify-between text-[11px] text-slate-500">
+              <span>Available</span>
+              <span>On Leave</span>
             </div>
-
-            {/* Vertical Multi-Bar Graph */}
-            <div className="flex items-end space-x-[3px] h-8 pt-1">
-              {[...Array(16)].map((_, i) => (
-                <div
-                  key={i}
-                  className="mini-bar bg-rose-500"
-                  style={{ height: `${20 + (i % 4) * 2.5}px` }}
-                />
+            <div className="flex items-center space-x-1">
+              {/* Orange available mini bars */}
+              {Array.from({ length: 20 }).map((_, i) => (
+                <div key={i} className="mini-bar bar-orange h-4" />
               ))}
-              {[...Array(8)].map((_, i) => (
-                <div
-                  key={i}
-                  className="mini-bar bg-slate-200"
-                  style={{ height: `${14 + (i % 3) * 2}px` }}
-                />
+              {/* Gray on leave mini bars */}
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="mini-bar bar-gray h-4" />
               ))}
             </div>
-
-            <div className="flex justify-between text-[10px] text-slate-400 font-mono pt-1">
+            <div className="flex justify-between text-[10px] font-mono text-slate-400 font-semibold pt-0.5">
               <span>28</span>
               <span>5</span>
             </div>
@@ -141,41 +174,32 @@ export default function OverviewDashboard({ onNavigate }) {
 
         {/* Card 3: Todays Appointments */}
         <div className="docu-card p-5 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex justify-between items-start">
             <div>
-              <span className="text-xs text-slate-400 font-medium">Todays Appointments</span>
+              <span className="text-xs font-semibold text-slate-400">Todays Appointments</span>
               <div className="text-2xl font-bold text-slate-900 mt-1">76</div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
-              <CalendarIcon className="w-4 h-4" />
+            <div className="p-2 rounded-full bg-slate-100 text-slate-600">
+              <Calendar className="w-4 h-4" />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between text-[11px] font-semibold">
-              <span className="text-amber-500">Completed</span>
-              <span className="text-slate-400">Upcoming</span>
+          <div className="space-y-1.5 pt-2 border-t border-slate-100">
+            <div className="flex justify-between text-[11px] text-slate-500">
+              <span>Completed</span>
+              <span>Upcoming</span>
             </div>
-
-            {/* Vertical Multi-Bar Graph */}
-            <div className="flex items-end space-x-[3px] h-8 pt-1">
-              {[...Array(16)].map((_, i) => (
-                <div
-                  key={i}
-                  className="mini-bar bg-amber-400"
-                  style={{ height: `${18 + (i % 5) * 2}px` }}
-                />
+            <div className="flex items-center space-x-1">
+              {/* Yellow completed mini bars */}
+              {Array.from({ length: 18 }).map((_, i) => (
+                <div key={i} className="mini-bar bar-yellow h-4" />
               ))}
-              {[...Array(8)].map((_, i) => (
-                <div
-                  key={i}
-                  className="mini-bar bg-slate-200"
-                  style={{ height: `${14 + (i % 2) * 3}px` }}
-                />
+              {/* Gray upcoming mini bars */}
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="mini-bar bar-gray h-4" />
               ))}
             </div>
-
-            <div className="flex justify-between text-[10px] text-slate-400 font-mono pt-1">
+            <div className="flex justify-between text-[10px] font-mono text-slate-400 font-semibold pt-0.5">
               <span>54</span>
               <span>22</span>
             </div>
@@ -184,41 +208,32 @@ export default function OverviewDashboard({ onNavigate }) {
 
         {/* Card 4: Monthly Revenue */}
         <div className="docu-card p-5 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex justify-between items-start">
             <div>
-              <span className="text-xs text-slate-400 font-medium">Monthly Revenue</span>
+              <span className="text-xs font-semibold text-slate-400">Monthly Revenue</span>
               <div className="text-2xl font-bold text-slate-900 mt-1">$2,8156</div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
+            <div className="p-2 rounded-full bg-slate-100 text-slate-600">
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between text-[11px] font-semibold">
-              <span className="text-emerald-600">Collected</span>
-              <span className="text-slate-400">Outstanding</span>
+          <div className="space-y-1.5 pt-2 border-t border-slate-100">
+            <div className="flex justify-between text-[11px] text-slate-500">
+              <span>Collected</span>
+              <span>Outstanding</span>
             </div>
-
-            {/* Vertical Multi-Bar Graph */}
-            <div className="flex items-end space-x-[3px] h-8 pt-1">
-              {[...Array(16)].map((_, i) => (
-                <div
-                  key={i}
-                  className="mini-bar bg-emerald-500"
-                  style={{ height: `${20 + (i % 4) * 2}px` }}
-                />
+            <div className="flex items-center space-x-1">
+              {/* Green collected mini bars */}
+              {Array.from({ length: 19 }).map((_, i) => (
+                <div key={i} className="mini-bar bar-green h-4" />
               ))}
-              {[...Array(8)].map((_, i) => (
-                <div
-                  key={i}
-                  className="mini-bar bg-slate-200"
-                  style={{ height: `${12 + (i % 3) * 3}px` }}
-                />
+              {/* Gray outstanding mini bars */}
+              {Array.from({ length: 7 }).map((_, i) => (
+                <div key={i} className="mini-bar bar-gray h-4" />
               ))}
             </div>
-
-            <div className="flex justify-between text-[10px] text-slate-400 font-mono pt-1">
+            <div className="flex justify-between text-[10px] font-mono text-slate-400 font-semibold pt-0.5">
               <span>$24.30k</span>
               <span>$3.8k</span>
             </div>
@@ -227,256 +242,256 @@ export default function OverviewDashboard({ onNavigate }) {
 
       </div>
 
-      {/* ROW 2: 3 Columns (Appointments Trends, Revenue Wave, Doctors Schedule) */}
+      {/* Row 2: Appointments Trends, Revenue & Doctors Schedule */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
-        {/* Col 1 (4 Cols): Appointments Trends */}
-        <div className="lg:col-span-4 docu-card p-5 space-y-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
+        {/* Appointments Trends (4 Cols) */}
+        <div className="lg:col-span-4 docu-card p-5 space-y-3 flex flex-col justify-between">
+          <div className="flex justify-between items-center">
             <h3 className="font-bold text-sm text-slate-900">Appointments Trends</h3>
-            <button className="p-1 rounded hover:bg-slate-100 text-slate-400">
+            <button className="p-1 rounded-lg hover:bg-slate-100 text-slate-400">
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
 
           <div>
-            <div className="text-[11px] text-slate-400">Spend this week</div>
-            <div className="flex items-baseline space-x-2 mt-0.5">
-              <span className="text-2xl font-bold text-slate-900">820</span>
-              <span className="text-xs text-rose-500 font-semibold flex items-center">
-                ↘ 345.34
-              </span>
+            <span className="text-[11px] text-slate-400">Spend this week</span>
+            <div className="flex items-baseline space-x-2">
+              <span className="text-2xl font-bold text-slate-900 font-mono">820</span>
+              <span className="text-xs text-rose-500 font-semibold">↘ 345.34</span>
             </div>
           </div>
 
-          <div className="flex space-x-2">
-            <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-700">
-              124 <span className="text-[10px] text-slate-400 font-normal">Completed</span>
+          <div className="flex items-center space-x-2 text-[11px]">
+            <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-semibold">
+              124 <span className="font-normal text-slate-400">Completed</span>
             </span>
-            <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-700">
-              20 <span className="text-[10px] text-slate-400 font-normal">Pending</span>
+            <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-semibold">
+              20 <span className="font-normal text-slate-400">Pending</span>
             </span>
           </div>
 
-          {/* Smooth Green Wave Line Chart with Floating Tooltip Badge */}
-          <div className="relative pt-4 h-28 flex items-end">
-            <svg viewBox="0 0 300 100" className="w-full h-full overflow-visible">
+          {/* Smooth Wave SVG Chart */}
+          <div className="relative h-28 pt-2">
+            <svg className="w-full h-full overflow-visible" viewBox="0 0 200 60">
               <path
-                d="M 0,80 Q 40,90 80,75 T 160,50 T 220,20 T 300,60"
+                d="M 0 45 Q 30 55, 60 40 T 120 20 T 160 10 T 200 35"
                 fill="none"
                 stroke="#10b981"
                 strokeWidth="2.5"
               />
-              <circle cx="220" cy="20" r="5" fill="#10b981" />
+              <circle cx="160" cy="10" r="4" fill="#10b981" />
             </svg>
-            <div className="absolute top-1 right-12 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md">
+            <div className="absolute top-0 right-8 px-2 py-0.5 bg-emerald-500 text-white rounded-full text-[10px] font-bold shadow">
               15,699
             </div>
           </div>
         </div>
 
-        {/* Col 2 (3 Cols): Revenue Overlapping Wave */}
-        <div className="lg:col-span-3 docu-card p-5 space-y-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm text-slate-900">Revenue</h3>
-            <button className="p-1 rounded hover:bg-slate-100 text-slate-400">
+        {/* Revenue Multi-Curve Wave (3 Cols) */}
+        <div className="lg:col-span-3 docu-card p-5 space-y-3 flex flex-col justify-between">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="font-bold text-sm text-slate-900">Revenue</h3>
+              <span className="text-xs text-emerald-600 font-bold">↗ 20,873.00</span>
+            </div>
+            <button className="p-1 rounded-lg hover:bg-slate-100 text-slate-400">
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="text-xs text-emerald-600 font-bold flex items-center">
-            ↗ 20,873.00
-          </div>
-
-          {/* Overlapping Waves Chart */}
-          <div className="relative pt-4 h-36 flex items-end">
-            <svg viewBox="0 0 200 100" className="w-full h-full overflow-visible">
-              <path
-                d="M 0,70 C 50,20 100,90 150,30 C 180,5 190,50 200,60"
-                fill="none"
-                stroke="#cbd5e1"
-                strokeWidth="2"
-              />
-              <path
-                d="M 0,50 C 40,80 90,10 140,70 C 170,90 190,40 200,45"
-                fill="none"
-                stroke="#0d9488"
-                strokeWidth="2"
-              />
-              <circle cx="140" cy="70" r="4" fill="#0f172a" />
+          {/* Multi-line Wave SVG */}
+          <div className="relative h-36 flex items-center justify-center">
+            <svg className="w-full h-full" viewBox="0 0 150 80">
+              <path d="M 0 50 Q 40 20, 75 40 T 150 30" fill="none" stroke="#10b981" strokeWidth="1.5" />
+              <path d="M 0 60 Q 45 80, 85 45 T 150 50" fill="none" stroke="#cbd5e1" strokeWidth="1.5" />
+              <path d="M 0 35 Q 50 10, 95 50 T 150 65" fill="none" stroke="#6ee7b7" strokeWidth="1.5" />
             </svg>
-            <div className="absolute top-8 left-24 bg-slate-900 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
+            <div className="absolute top-4 bg-slate-900 text-white text-[11px] font-bold px-2 py-1 rounded-full shadow">
               820
             </div>
           </div>
         </div>
 
-        {/* Col 3 (5 Cols): Doctors Schedule Widget */}
-        <div className="lg:col-span-5 docu-card p-5 space-y-4">
-          <div className="flex items-center justify-between">
+        {/* Doctors Schedule (5 Cols) */}
+        <div className="lg:col-span-5 docu-card p-5 space-y-3.5">
+          <div className="flex justify-between items-center">
             <h3 className="font-bold text-sm text-slate-900">Doctors Schedule</h3>
-            <button 
-              onClick={() => onNavigate('calendar')}
-              className="p-1 rounded hover:bg-slate-100 text-slate-400"
-            >
+            <button className="p-1 rounded-lg hover:bg-slate-100 text-slate-400">
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="flex justify-between items-baseline pt-1">
+          <div className="flex items-center justify-between text-xs pt-1">
             <div>
-              <span className="text-lg font-bold text-slate-900">$92</span>
-              <span className="text-xs text-slate-400 ml-1">Per Session</span>
+              <div className="text-base font-bold text-slate-900 font-mono">$92</div>
+              <span className="text-[10px] text-slate-400">Per Session</span>
             </div>
-            <div className="text-xs text-slate-500 font-medium flex items-center space-x-1">
-              <MapPin className="w-3.5 h-3.5 text-teal-600" />
-              <span>300 Pasteur DR, Stanford</span>
+            <div className="text-right">
+              <div className="font-bold text-slate-800">300 Pasteur DR</div>
+              <span className="text-[10px] text-slate-400">Stanford</span>
             </div>
           </div>
 
-          {/* Schedule Section */}
-          <div className="space-y-2 pt-1 border-t border-slate-100">
-            <span className="text-xs font-bold text-slate-700">Schedule</span>
-            
-            {/* Interactive Date Row with Avatars & Pills */}
+          {/* Date Selector Pills */}
+          <div>
+            <span className="text-[11px] font-bold text-slate-700 block mb-1.5">Schedule</span>
             <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 no-scrollbar">
-              {dates.map((item, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => setActiveDateIndex(idx)}
-                  className={`flex flex-col items-center p-1.5 rounded-full cursor-pointer transition ${
-                    activeDateIndex === idx ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  <span className="text-[10px] font-bold">{item.day}</span>
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-teal-400 to-cyan-300 mt-1 flex items-center justify-center text-[9px] text-slate-900 font-bold">
-                    {item.doc[0]}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Time Slot Chips */}
-            <div className="grid grid-cols-4 gap-1.5 pt-2">
-              {timeSlots.map((time) => (
+              {scheduleDates.map((item, idx) => (
                 <button
-                  key={time}
-                  onClick={() => setActiveTimeSlot(time)}
-                  className={`py-1.5 px-2 rounded-lg text-[10px] font-semibold transition ${
-                    activeTimeSlot === time
-                      ? 'bg-slate-900 text-white shadow-sm'
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-100'
+                  key={idx}
+                  onClick={() => setSelectedDateIndex(idx)}
+                  className={`w-7 h-7 rounded-full text-xs font-semibold flex items-center justify-center shrink-0 transition ${
+                    selectedDateIndex === idx
+                      ? 'bg-slate-900 text-white shadow'
+                      : item.hasDoc
+                      ? 'bg-slate-200 text-slate-800'
+                      : 'text-slate-400 hover:bg-slate-100'
                   }`}
                 >
-                  {time}
+                  {item.day}
                 </button>
               ))}
             </div>
+          </div>
 
-            {/* Ongoing Treatments vs Awaiting Follow up */}
-            <div className="pt-3 border-t border-slate-100 space-y-2">
-              {/* Progress Track */}
-              <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-slate-200 rounded-full w-[65%]" />
+          {/* Time Slot Pills */}
+          <div className="flex flex-wrap gap-1.5">
+            {timeSlots.map((time) => (
+              <button
+                key={time}
+                onClick={() => setSelectedTimeSlot(time)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition ${
+                  selectedTimeSlot === time
+                    ? 'bg-slate-900 text-white shadow'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {time}
+              </button>
+            ))}
+          </div>
+
+          {/* Gradient Slider Bar */}
+          <div className="relative pt-2">
+            <div className="h-2 rounded-full bg-gradient-to-r from-yellow-300 via-emerald-400 to-teal-500 w-full" />
+            <div className="absolute top-3 left-3/4 w-3.5 h-3.5 rounded-full bg-slate-900 border-2 border-white shadow -translate-y-1/2" />
+          </div>
+
+          {/* Ongoing & Follow up Summary */}
+          <div className="flex justify-between items-center text-xs pt-1 border-t border-slate-100">
+            <div>
+              <div className="flex items-center space-x-1 text-slate-700 font-semibold text-[11px]">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>8 Ongoing Treatments</span>
               </div>
-
-              <div className="flex items-center justify-between text-[11px] pt-1">
-                <div>
-                  <div className="font-semibold text-slate-700 flex items-center space-x-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span>8 Ongoing Treatments</span>
-                  </div>
-                  <div className="flex -space-x-1.5 mt-1">
-                    {['#10b981', '#06b6d4', '#6366f1'].map((c, i) => (
-                      <div key={i} className="w-5 h-5 rounded-full border-2 border-white text-[8px] font-bold text-white flex items-center justify-center" style={{ backgroundColor: c }}>
-                        P{i + 1}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="font-semibold text-slate-500 flex items-center space-x-1">
-                    <span className="w-2 h-2 rounded-full bg-slate-300" />
-                    <span>4 Awaiting Follow up</span>
-                  </div>
-                  <div className="flex -space-x-1.5 mt-1 justify-end">
-                    {['#94a3b8', '#cbd5e1'].map((c, i) => (
-                      <div key={i} className="w-5 h-5 rounded-full border-2 border-white text-[8px] font-bold text-white flex items-center justify-center" style={{ backgroundColor: c }}>
-                        F{i + 1}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              <div className="flex -space-x-1.5 mt-1">
+                {['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=50'].map((src, i) => (
+                  <img key={i} src={src} className="w-5 h-5 rounded-full border border-white object-cover" />
+                ))}
               </div>
             </div>
 
+            <div>
+              <div className="flex items-center space-x-1 text-slate-700 font-semibold text-[11px]">
+                <span className="w-2 h-2 rounded-full bg-slate-300" />
+                <span>4 Awaiting Follow up</span>
+              </div>
+              <div className="flex -space-x-1.5 mt-1">
+                {['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=50', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50'].map((src, i) => (
+                  <img key={i} src={src} className="w-5 h-5 rounded-full border border-white object-cover" />
+                ))}
+              </div>
+            </div>
           </div>
 
         </div>
 
       </div>
 
-      {/* ROW 3: Patient Demographic Cohorts (DocuVerse Style) */}
-      <div className="docu-card p-6 space-y-5">
-        <div className="flex items-center justify-between">
+      {/* Row 3: Patient Demographic Age-Striped Bar Chart */}
+      <div className="docu-card p-6 space-y-4">
+        
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-bold text-sm text-slate-900">Patient Demographic</h3>
             <div className="flex items-baseline space-x-2 mt-0.5">
-              <span className="text-xl font-bold text-slate-900">820</span>
-              <span className="text-xs text-slate-400 font-medium">Total Patients</span>
+              <span className="text-xl font-bold text-slate-900 font-mono">820</span>
+              <span className="text-xs text-slate-400">Total Patients</span>
               <span className="text-xs text-rose-500 font-semibold">↘ 3.5%</span>
             </div>
           </div>
 
-          <div className="flex space-x-2">
-            <button className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600">
+          <div className="flex items-center space-x-2">
+            <button className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200">
               <Bookmark className="w-4 h-4" />
             </button>
-            <button className="p-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800">
+            <button className="p-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800">
               <Plus className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Cohort Columns Bar Chart */}
-        <div className="grid grid-cols-5 gap-4 items-end pt-4 border-b border-slate-100 pb-4">
-          {[
-            { age: '18-30 yrs', count: 220, height: '85%', tag: '25.0%' },
-            { age: '31-45 yrs', count: 195, height: '72%', tag: '35.0%' },
-            { age: '46-60 yrs', count: 175, height: '62%', tag: '30.0%' },
-            { age: '61-70 yrs', count: 130, height: '45%', tag: '10.0%' },
-            { age: '70+ yrs', count: 100, height: '28%', tag: '10.0%' },
-          ].map((col, idx) => (
-            <div key={idx} className="flex flex-col items-center space-y-2">
-              <div className="text-[11px] text-slate-400 font-medium">Active Patients</div>
-              <div className="text-sm font-bold text-slate-900 font-mono">{col.count}</div>
-
-              {/* Bar with gradient and hatch pattern */}
-              <div className="w-full h-40 bg-slate-50 rounded-xl overflow-hidden flex items-end p-1">
-                <div
-                  className="w-full bg-gradient-to-t from-lime-500 via-emerald-400 to-teal-500 rounded-lg hatch-pattern shadow-inner transition-all hover:brightness-105"
-                  style={{ height: col.height }}
-                />
-              </div>
-
-              <span className="text-xs font-semibold text-slate-600">{col.age}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Bottom Percentage Pills */}
-        <div className="flex flex-wrap items-center justify-between text-xs text-slate-500">
-          <div className="flex items-center space-x-4">
-            <span><strong>70+:</strong> 10.0%</span>
-            <span><strong>18-30:</strong> 25.0%</span>
-            <span><strong>51-70:</strong> 30.0%</span>
-            <span><strong>31-50:</strong> 35.0%</span>
+        {/* Striped Demographic Columns */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-4 items-end">
+          
+          {/* Age Labels on Left */}
+          <div className="md:col-span-2 space-y-4 text-xs font-semibold text-slate-500 pb-2">
+            <div>18-30 yrs</div>
+            <div>31-45 yrs</div>
+            <div>46-60 yrs</div>
+            <div>61-70 yrs</div>
+            <div>70+ yrs</div>
           </div>
-          <span className="text-[11px] text-teal-600 font-semibold cursor-pointer hover:underline">
-            Download Demographic Report (.csv)
-          </span>
+
+          {/* 5 Striped Demographic Bar Columns */}
+          <div className="md:col-span-10 grid grid-cols-5 gap-3 items-end h-44">
+            
+            {/* Col 1 */}
+            <div className="space-y-1.5 flex flex-col items-center">
+              <div className="text-[11px] font-bold text-slate-800 font-mono">220</div>
+              <div className="w-full striped-bar-green h-36" />
+              <span className="text-[10px] text-slate-400 font-semibold">Active</span>
+            </div>
+
+            {/* Col 2 */}
+            <div className="space-y-1.5 flex flex-col items-center">
+              <div className="text-[11px] font-bold text-slate-800 font-mono">195</div>
+              <div className="w-full striped-bar-green h-28" />
+              <span className="text-[10px] text-slate-400 font-semibold">Active</span>
+            </div>
+
+            {/* Col 3 */}
+            <div className="space-y-1.5 flex flex-col items-center">
+              <div className="text-[11px] font-bold text-slate-800 font-mono">175</div>
+              <div className="w-full striped-bar-lime h-24" />
+              <span className="text-[10px] text-slate-400 font-semibold">Active</span>
+            </div>
+
+            {/* Col 4 */}
+            <div className="space-y-1.5 flex flex-col items-center">
+              <div className="text-[11px] font-bold text-slate-800 font-mono">130</div>
+              <div className="w-full striped-bar-yellow h-16" />
+              <span className="text-[10px] text-slate-400 font-semibold">Active</span>
+            </div>
+
+            {/* Col 5 */}
+            <div className="space-y-1.5 flex flex-col items-center">
+              <div className="text-[11px] font-bold text-slate-800 font-mono">100</div>
+              <div className="w-full striped-bar-yellow h-10" />
+              <span className="text-[10px] text-slate-400 font-semibold">Active</span>
+            </div>
+
+          </div>
+
         </div>
+
+        {/* Ratio Tooltip Footer */}
+        <div className="p-3 bg-slate-50 rounded-xl flex items-center justify-between text-xs font-semibold text-slate-600">
+          <span>Age Breakdown Distribution:</span>
+          <span className="font-mono text-emerald-700">70+: 10.0% • 18-30: 25.0% • 51-70: 30.0% • 31-50: 35.0%</span>
+        </div>
+
       </div>
 
     </div>

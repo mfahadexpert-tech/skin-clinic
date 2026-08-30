@@ -1,6 +1,6 @@
 /* ==============================================================================
-   SkinLab AI - Professional Medical Dashboard Stylesheet
-   Faithfully implementing DocuVerse & Youcare UI/UX Design Systems
+   SkinLab AI - Pixel-Perfect Medical UI Theme
+   Exact Match to DocuVerse & Youcare Design Systems
    ============================================================================== */
 
 @tailwind base;
@@ -8,17 +8,15 @@
 @tailwind utilities;
 
 :root {
-  --bg-app: #f1f5f9;
-  --bg-card: #ffffff;
+  --bg-app: #f4f7f6;
+  --bg-surface: #ffffff;
   --bg-sidebar: #ffffff;
-  --text-main: #0f172a;
+  --text-main: #1e293b;
   --text-muted: #64748b;
   --border-subtle: #e2e8f0;
-  --accent-primary: #059669; /* DocuVerse Emerald Green */
-  --accent-blue: #2563eb;    /* Youcare Vibrant Blue */
-  --accent-cyan: #06b6d4;
-  --accent-purple: #9333ea;
-  --accent-amber: #d97706;
+  --primary-green: #00D084;
+  --primary-emerald: #059669;
+  --primary-blue: #2563eb;
 }
 
 body {
@@ -28,67 +26,114 @@ body {
   min-height: 100vh;
   margin: 0;
   padding: 0;
-  -webkit-font-smoothing: antialiased;
 }
 
-/* White Card Container (DocuVerse & Youcare Style) */
+/* Master App Container Frame */
+.docuverse-frame {
+  background: #ffffff;
+  border-radius: 2rem;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+/* DocuVerse Card Styling */
 .docu-card {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #f1f5f9;
   border-radius: 1.25rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
-}
-
-.docu-card-interactive {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 1.25rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
   transition: all 0.2s ease;
 }
 
-.docu-card-interactive:hover {
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.06);
-  border-color: #cbd5e1;
+.docu-card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.04);
 }
 
-/* Sidebar Active Item Pill */
-.sidebar-active-item {
-  background: #0f172a;
-  color: #ffffff !important;
-  border-radius: 0.875rem;
-  font-weight: 600;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+/* Mini Vertical Bars for KPI Cards */
+.mini-bar {
+  width: 2.5px;
+  border-radius: 2px;
+  display: inline-block;
 }
 
-.sidebar-item {
-  color: #64748b;
-  border-radius: 0.875rem;
-  font-weight: 500;
+.bar-green {
+  background-color: #10b981;
+}
+
+.bar-orange {
+  background-color: #f97316;
+}
+
+.bar-yellow {
+  background-color: #eab308;
+}
+
+.bar-gray {
+  background-color: #e2e8f0;
+}
+
+/* Striped Bar Chart for Demographic */
+.striped-bar-green {
+  background: repeating-linear-gradient(
+    45deg,
+    #10b981,
+    #10b981 4px,
+    #059669 4px,
+    #059669 8px
+  );
+  border-radius: 0.5rem;
+}
+
+.striped-bar-lime {
+  background: repeating-linear-gradient(
+    45deg,
+    #84cc16,
+    #84cc16 4px,
+    #65a30d 4px,
+    #65a30d 8px
+  );
+  border-radius: 0.5rem;
+}
+
+.striped-bar-yellow {
+  background: repeating-linear-gradient(
+    45deg,
+    #eab308,
+    #eab308 4px,
+    #ca8a04 4px,
+    #ca8a04 8px
+  );
+  border-radius: 0.5rem;
+}
+
+/* Inputs & Pills */
+.docu-input {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
+  border-radius: 9999px;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  outline: none;
   transition: all 0.15s ease;
 }
 
-.sidebar-item:hover {
-  background: #f8fafc;
-  color: #0f172a;
+.docu-input:focus {
+  background-color: #ffffff;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
-/* Vertical Mini Bar Graph (DocuVerse Metric Cards) */
-.mini-bar {
-  width: 2.5px;
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
   border-radius: 9999px;
-  transition: height 0.3s ease;
-}
-
-/* Hatch Pattern for Demographic Chart */
-.hatch-pattern {
-  background-image: repeating-linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.2),
-    rgba(255, 255, 255, 0.2) 6px,
-    transparent 6px,
-    transparent 12px
-  );
 }
 
 /* Print Rules */

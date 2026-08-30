@@ -1,7 +1,6 @@
 /**
  * ==============================================================================
- * SkinLab AI - Main Single Page Application (SPA) Controller
- * Implementing DocuVerse & Youcare Medical UI/UX Design System
+ * SkinLab AI - Master Application Frame (DocuVerse & Youcare UI Master)
  * ==============================================================================
  */
 
@@ -22,16 +21,11 @@ import StaffDirectory from '@/components/HRM/StaffDirectory';
 import SupplierPurchases from '@/components/Purchases/SupplierPurchases';
 import ClinicSettings from '@/components/Settings/ClinicSettings';
 import { api } from '@/lib/api';
-import { outboxManager } from '@/lib/outbox';
 
 export default function SkinLabApp() {
-  // Navigation State
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'calendar', 'pos', 'prm', 'ai-doctor', 'hrm', 'reports', 'settings'
-  const [currentRole, setCurrentRole] = useState('doctor');
-  const [isOffline, setIsOffline] = useState(false);
-  const [outboxCount, setOutboxCount] = useState(0);
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'ai-doctor', 'prm', 'calendar', 'pos', 'voice-agent', 'whatsapp', 'reports', 'settings'
 
-  // Clinic Core Data Stores
+  // Data Stores
   const [patients, setPatients] = useState([]);
   const [products, setProducts] = useState([]);
   const [deals, setDeals] = useState([]);
@@ -39,7 +33,7 @@ export default function SkinLabApp() {
   const [sales, setSales] = useState([]);
   const [appointments, setAppointments] = useState([]);
 
-  // Initial Load from Python FastAPI Backend
+  // Load clinic data
   const refreshClinicData = async () => {
     try {
       const posData = await api.getPOSOverview();
@@ -64,106 +58,64 @@ export default function SkinLabApp() {
         setAppointments(apptData.appointments);
       }
     } catch (e) {
-      console.warn("[App] Initial load from backend:", e);
+      console.warn("[App] Initial load:", e);
     }
   };
 
   useEffect(() => {
     refreshClinicData();
-    const count = outboxManager.getPendingQueue().length;
-    setOutboxCount(count);
   }, []);
 
-  // Handle Checkout Action
   const handleCheckout = async (salePayload) => {
-    if (isOffline) {
-      outboxManager.enqueueAction('create_sale', salePayload);
-      setOutboxCount(outboxManager.getPendingQueue().length);
-      alert('Sale saved in Offline Outbox.');
-      return { success: true, sale: { ...salePayload, invoice_number: 'INV-OFFLINE-01', token_number: 'P-OFF' } };
-    }
-
-    try {
-      const result = await api.createSale(salePayload);
-      await refreshClinicData();
-      return result;
-    } catch (e) {
-      console.error(e);
-      return null;
-    }
+    const result = await api.createSale(salePayload);
+    await refreshClinicData();
+    return result;
   };
 
-  // Handle Session Redemption Action
   const handleRedeemSession = async (redeemPayload) => {
-    if (isOffline) {
-      outboxManager.enqueueAction('redeem_session', redeemPayload);
-      setOutboxCount(outboxManager.getPendingQueue().length);
-      alert('Redemption queued in Outbox.');
-      return { success: true };
-    }
-
-    try {
-      const result = await api.redeemSession(redeemPayload);
-      await refreshClinicData();
-      return result;
-    } catch (e) {
-      console.error(e);
-      return null;
-    }
+    const result = await api.redeemSession(redeemPayload);
+    await refreshClinicData();
+    return result;
   };
 
-  // Handle Patient Registration Action
   const handleRegisterPatient = async (patientPayload) => {
-    if (isOffline) {
-      outboxManager.enqueueAction('register_patient', patientPayload);
-      setOutboxCount(outboxManager.getPendingQueue().length);
-      const tempPatient = { id: Date.now(), mrn: '0099-08-2026', ...patientPayload, visit_count: 0, current_balance: 0, advance_balance: 0 };
-      setPatients(prev => [tempPatient, ...prev]);
-      return { success: true, patient: tempPatient };
-    }
-
-    try {
-      const result = await api.registerPatient(patientPayload);
-      await refreshClinicData();
-      return result;
-    } catch (e) {
-      console.error(e);
-      return null;
-    }
+    const result = await api.registerPatient(patientPayload);
+    await refreshClinicData();
+    return result;
   };
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9]">
+    <div className="min-h-screen bg-[#eaf0ee] p-4 sm:p-8 flex items-center justify-center font-sans">
       
-      {/* 1. DocuVerse Sidebar & Header */}
-      <Navigation
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        currentRole={currentRole}
-        setCurrentRole={setCurrentRole}
-        isOffline={isOffline}
-        setIsOffline={setIsOffline}
-      />
+      {/* DocuVerse Main Card Frame */}
+      <div className="docuverse-frame w-full max-w-[1440px] flex flex-col md:flex-row overflow-hidden border border-slate-200/80 shadow-2xl">
+        
+        {/* Left Sidebar (DocuVerse Exact Menu & AI Card) */}
+        <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* 2. Main Content View Area (Padded for Left Sidebar) */}
-      <main className="pl-64 pr-8 pb-16 pt-2">
-        <div className="max-w-[1440px] mx-auto">
+        {/* Right Main Content View */}
+        <main className="flex-1 p-6 md:p-8 bg-[#fdfdfd] overflow-y-auto max-h-[92vh]">
           
+          {/* TAB 1: Overview Dashboard (DocuVerse Image 1) */}
           {activeTab === 'overview' && (
             <OverviewDashboard
+              patients={patients}
+              doctors={doctors}
+              sales={sales}
               onNavigate={setActiveTab}
             />
           )}
 
+          {/* TAB 2: Appointment Calendar (Youcare Image 2) */}
           {activeTab === 'calendar' && (
             <CalendarManager
               appointments={appointments}
               doctors={doctors}
               patients={patients}
-              onAddAppointment={(newAppt) => setAppointments(prev => [newAppt, ...prev])}
             />
           )}
 
+          {/* TAB 3: POS Billing */}
           {activeTab === 'pos' && (
             <POSTerminal
               patients={patients}
@@ -172,10 +124,10 @@ export default function SkinLabApp() {
               doctors={doctors}
               onCheckout={handleCheckout}
               onRegisterPatient={handleRegisterPatient}
-              isOffline={isOffline}
             />
           )}
 
+          {/* TAB 4: Patient PRM */}
           {activeTab === 'prm' && (
             <PatientDirectory
               patients={patients}
@@ -184,27 +136,37 @@ export default function SkinLabApp() {
             />
           )}
 
-          {activeTab === 'hrm' && (
-            <StaffDirectory />
+          {/* TAB 5: Doctor AI Assistant */}
+          {activeTab === 'ai-doctor' && (
+            <DoctorAssistant
+              patients={patients}
+              onInjectNotes={() => setActiveTab('pos')}
+            />
           )}
 
+          {/* TAB 6: Voice Booking Agent */}
+          {activeTab === 'voice-agent' && (
+            <VoiceBookingAgent />
+          )}
+
+          {/* TAB 7: WhatsApp Hub */}
+          {activeTab === 'whatsapp' && (
+            <WhatsAppHub patients={patients} />
+          )}
+
+          {/* TAB 8: Reports */}
           {activeTab === 'reports' && (
             <AnalyticsDashboard />
           )}
 
+          {/* TAB 9: Settings */}
           {activeTab === 'settings' && (
             <ClinicSettings />
           )}
 
-          {activeTab === 'ai-doctor' && (
-            <DoctorAssistant
-              patients={patients}
-              onInjectNotes={(notes) => setActiveTab('pos')}
-            />
-          )}
+        </main>
 
-        </div>
-      </main>
+      </div>
 
     </div>
   );

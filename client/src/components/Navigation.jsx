@@ -1,7 +1,7 @@
 /**
  * ==============================================================================
- * SkinLab AI - Navigation Sidebar & Top Header Bar
- * Pixel-Perfect Implementation of DocuVerse Medical UI/UX Design System
+ * SkinLab AI - Left Navigation Sidebar (DocuVerse UI Clone)
+ * Pixel-Perfect match to DocuVerse Left Sidebar Reference
  * ==============================================================================
  */
 
@@ -10,182 +10,119 @@
 import React from 'react';
 import { 
   LayoutDashboard, 
-  UserCheck, 
+  Stethoscope, 
   Users, 
-  Calendar as CalendarIcon, 
+  Calendar, 
   CreditCard, 
-  BarChart3, 
+  BarChart2, 
   Settings, 
-  Search, 
-  Bell, 
-  UserPlus, 
-  CalendarDays, 
-  FileText, 
+  PhoneCall, 
+  MessageSquare, 
   Sparkles,
-  X,
-  Plus
+  X
 } from 'lucide-react';
 
-export default function Navigation({ 
-  activeTab, 
-  setActiveTab, 
-  currentRole, 
-  setCurrentRole,
-  isOffline,
-  setIsOffline
-}) {
-  const navItems = [
+export default function Navigation({ activeTab, setActiveTab }) {
+  const menuItems = [
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'hrm', label: 'Doctor', icon: UserCheck },
+    { id: 'ai-doctor', label: 'Doctor', icon: Stethoscope },
     { id: 'prm', label: 'Patients', icon: Users },
-    { id: 'calendar', label: 'Appointments', icon: CalendarIcon },
+    { id: 'calendar', label: 'Appointments', icon: Calendar },
     { id: 'pos', label: 'Billing', icon: CreditCard },
-    { id: 'reports', label: 'Reports', icon: BarChart3 },
+    { id: 'voice-agent', label: 'Voice Booking', icon: PhoneCall },
+    { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
+    { id: 'reports', label: 'Reports', icon: BarChart2 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (
-    <>
-      {/* 1. FIXED LEFT SIDEBAR (DocuVerse Style) */}
-      <aside className="w-64 fixed left-0 top-0 bottom-0 bg-white border-r border-slate-200 z-50 flex flex-col justify-between p-5 overflow-y-auto">
+    <aside className="w-64 bg-white p-6 flex flex-col justify-between rounded-l-3xl border-r border-slate-100 min-h-[900px] shrink-0">
+      
+      {/* Brand Header */}
+      <div className="space-y-8">
         
-        <div className="space-y-6">
-          {/* Brand Logo */}
-          <div className="flex items-center space-x-3 cursor-pointer pl-2" onClick={() => setActiveTab('overview')}>
-            <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white shadow-sm">
-              {/* DocuVerse 4-leaf cross icon */}
-              <div className="grid grid-cols-2 gap-0.5">
-                <div className="w-2 h-2 bg-white rounded-full"></div>
-                <div className="w-2 h-2 bg-white/70 rounded-full"></div>
-                <div className="w-2 h-2 bg-white/70 rounded-full"></div>
-                <div className="w-2 h-2 bg-white rounded-full"></div>
-              </div>
-            </div>
-            <span className="font-extrabold text-lg text-slate-900 tracking-tight">DocuVerse</span>
+        {/* Logo (DocuVerse Clover Style) */}
+        <div className="flex items-center space-x-2.5 cursor-pointer" onClick={() => setActiveTab('overview')}>
+          <div className="w-8 h-8 grid grid-cols-2 gap-0.5">
+            <span className="w-3.5 h-3.5 rounded-full bg-emerald-500" />
+            <span className="w-3.5 h-3.5 rounded-full bg-emerald-400" />
+            <span className="w-3.5 h-3.5 rounded-full bg-emerald-600" />
+            <span className="w-3.5 h-3.5 rounded-full bg-emerald-300" />
           </div>
-
-          {/* Navigation Menu */}
-          <nav className="space-y-1.5 pt-2">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center space-x-3 px-3.5 py-2.5 text-xs font-semibold transition ${
-                    isActive
-                      ? 'sidebar-active-item'
-                      : 'sidebar-item'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
+          <span className="font-extrabold text-lg text-slate-900 tracking-tight">DocuVerse</span>
         </div>
 
-        {/* Bottom Section: User Profile & AI Health Update Card */}
-        <div className="space-y-4 pt-4 border-t border-slate-100">
-          
-          {/* User Profile Chip */}
-          <div className="flex items-center space-x-3 pl-1">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-rose-400 to-amber-300 overflow-hidden flex items-center justify-center font-bold text-white text-xs">
-              DR
-            </div>
-            <div>
-              <div className="text-xs font-bold text-slate-900 leading-tight">Darlene Robertson</div>
-              <div className="text-[10px] text-slate-400 font-mono">ID: 72630284</div>
-            </div>
-          </div>
-
-          {/* DocuVerse Floating AI Health Update Card */}
-          <div className="p-4 rounded-2xl bg-gradient-to-b from-emerald-50 via-teal-50 to-white border border-emerald-200/60 relative shadow-sm space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-xs text-slate-900">AI Health Update</span>
-              <button 
-                onClick={() => setActiveTab('ai-doctor')}
-                className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-[9px]"
+        {/* Menu Navigation Items */}
+        <nav className="space-y-1.5">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-2xl text-xs font-semibold transition ${
+                  isActive
+                    ? 'bg-slate-100 text-slate-900 font-bold shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                }`}
               >
-                ✕
+                <Icon className="w-4 h-4" />
+                <span>{item.label}</span>
               </button>
-            </div>
+            );
+          })}
+        </nav>
 
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Advantages</span>
-              <p className="text-[11px] text-slate-600 leading-relaxed">
-                New AI engine improves diagnosis accuracy by 27%
-              </p>
-            </div>
+      </div>
 
-            {/* Wave Illustration Graphic */}
-            <div className="h-6 flex items-end">
-              <svg viewBox="0 0 100 20" className="w-full h-full">
-                <path d="M 0,15 Q 25,5 50,12 T 100,8" fill="none" stroke="#10b981" strokeWidth="2" />
-              </svg>
-            </div>
+      {/* Bottom Profile & AI Health Update Card */}
+      <div className="space-y-4 pt-6">
+        
+        {/* Profile Chip */}
+        <div className="flex items-center space-x-3 px-2">
+          <img
+            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
+            className="w-10 h-10 rounded-full object-cover border border-slate-200"
+          />
+          <div>
+            <div className="font-bold text-xs text-slate-900">Darlene Robertson</div>
+            <div className="text-[10px] text-slate-400 font-mono">ID: 72630284</div>
+          </div>
+        </div>
 
-            <button
-              onClick={() => setActiveTab('ai-doctor')}
-              className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs shadow-md transition"
-            >
-              Update Now
+        {/* AI Health Update Card (DocuVerse Floating Widget) */}
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-100/70 via-teal-50 to-lime-50 border border-emerald-200/50 space-y-3 relative overflow-hidden">
+          
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-xs text-slate-900">AI Health Update</span>
+            <button className="text-slate-400 hover:text-slate-600">
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
 
-        </div>
-
-      </aside>
-
-      {/* 2. TOP HEADER BAR (DocuVerse Style) */}
-      <header className="pl-64 sticky top-0 z-40 bg-[#f1f5f9]/90 backdrop-blur-md px-8 py-4 flex items-center justify-between">
-        
-        {/* Search Bar */}
-        <div className="relative w-96">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-          <input
-            type="text"
-            placeholder="Search"
-            className="w-full bg-white border border-slate-200 rounded-2xl pl-10 pr-4 py-2 text-xs text-slate-900 placeholder:text-slate-400 outline-none shadow-sm focus:border-emerald-500 transition"
-          />
-        </div>
-
-        {/* Right Header Actions */}
-        <div className="flex items-center space-x-3">
-          
-          {/* Notification Bell */}
-          <button className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 shadow-sm">
-            <Bell className="w-4 h-4" />
-          </button>
-
-          {/* Add User Icon */}
-          <button 
-            onClick={() => setActiveTab('prm')}
-            className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 shadow-sm"
-          >
-            <UserPlus className="w-4 h-4" />
-          </button>
-
-          {/* Date Picker Pill */}
-          <div className="flex items-center space-x-2 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm text-xs font-semibold text-slate-700">
-            <CalendarDays className="w-3.5 h-3.5 text-slate-500" />
-            <span>October 23, 2026</span>
+          <div className="p-2.5 rounded-xl bg-white/70 backdrop-blur-sm border border-white/60 space-y-1">
+            <div className="text-[10px] font-bold text-emerald-800">Advantages</div>
+            <p className="text-[10px] text-slate-600 leading-tight">
+              New AI engine improves diagnosis accuracy by 27%
+            </p>
+            {/* Wave Graphic */}
+            <svg className="w-full h-5 pt-1" viewBox="0 0 100 20">
+              <path d="M 0 15 Q 25 5, 50 15 T 100 8" fill="none" stroke="#10b981" strokeWidth="1.5" />
+            </svg>
           </div>
 
-          {/* Primary Action Button (Green DocuVerse Pill) */}
           <button
-            onClick={() => setActiveTab('pos')}
-            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/25 transition"
+            onClick={() => setActiveTab('ai-doctor')}
+            className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow transition"
           >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Generate Report</span>
+            Update Now
           </button>
 
         </div>
 
-      </header>
-    </>
+      </div>
+
+    </aside>
   );
 }
