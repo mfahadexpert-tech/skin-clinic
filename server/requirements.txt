@@ -1,0 +1,25 @@
+# ==============================================================================
+# SkinLab AI - Backend Dependencies (Python 3.10+)
+# ==============================================================================
+# Web Framework & Asynchronous Server
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.6.0
+python-multipart>=0.0.9
+
+# Database & Supabase Integration
+supabase>=2.3.0
+gotrue>=2.8.0
+postgrest>=0.13.0
+sqlalchemy>=2.0.25
+
+# AI Orchestration & Clinical RAG (LangChain + LangGraph)
+langchain>=0.1.12
+langchain-core>=0.1.30
+langchain-community>=0.0.28
+langgraph>=0.0.26
+
+# Utilities & Security
+python-dotenv>=1.0.1
+bcrypt>=4.1.2
+requests>=2.31.0

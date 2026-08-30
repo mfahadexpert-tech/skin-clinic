@@ -1,0 +1,92 @@
+{
+  "clinical_protocols": [
+    {
+      "id": "PROT-LASER-01",
+      "treatment": "Diode / Alexandrite Laser Hair Reduction",
+      "skin_types_allowed": ["Fitzpatrick Type I", "Fitzpatrick Type II", "Fitzpatrick Type III", "Fitzpatrick Type IV", "Fitzpatrick Type V"],
+      "recommended_parameters": {
+        "type_1_to_2": "Fluence 14-18 J/cm², Pulse Width 20-30ms, Spot Size 12mm",
+        "type_3_to_4": "Fluence 12-14 J/cm², Pulse Width 30-40ms, Spot Size 10-12mm",
+        "type_5_to_6": "Nd:YAG 1064nm only, Fluence 10-12 J/cm², Pulse Width 40-50ms"
+      },
+      "intervals": "4 to 6 weeks between sessions. Total course: 6 to 8 sessions.",
+      "contraindications": [
+        "Current oral Isotretinoin (Roaccutane) use within past 6 months",
+        "Active tan, sunburn, or recent solarium exposure",
+        "Active herpes simplex or open skin infections in treatment area",
+        "Pregnancy or breastfeeding",
+        "History of keloid scarring"
+      ],
+      "pre_care": "Shave treatment area 24 hours prior. Do NOT wax, pluck, or thread. Avoid sun exposure for 14 days.",
+      "post_care": "Apply cold compress / Aloe vera gel for erythema. Mandate mineral Sunscreen SPF 50+ every 3 hours. Avoid hot showers, saunas, and steam for 48 hours.",
+      "roman_urdu_summary": "Laser session se 24 ghantay pehle shaving lazmi hai. Waxing ya threading bilkul na karein. Treatment ke baad 48 ghantay garam pani se gurez karein aur har 3 ghantay baad SPF 50 sunblock lagayein."
+    },
+    {
+      "id": "PROT-FACIAL-01",
+      "treatment": "HydraFacial Deluxe (Medical Grade Vortex Exfoliation)",
+      "skin_types_allowed": ["All Skin Types (Fitzpatrick I - VI)"],
+      "step_by_step": [
+        "Step 1: Cleanse + Vortex Exfoliation (Activ-4 Glucosamine serum)",
+        "Step 2: GlySal Peel (7.5% Glycolic + 2% Salicylic Acid for pore decongestion)",
+        "Step 3: Painless Vortex Suction Extraction (Beta-HD salicylic acid)",
+        "Step 4: Antioxidant + Hyaluronic Acid Infusion (Antiox+ serum with red/blue LED light therapy)"
+      ],
+      "intervals": "Every 3 to 4 weeks for maintenance. Bridal packages recommended 7-10 days before the wedding event.",
+      "contraindications": [
+        "Active severe cystic acne flare-up with open pustules",
+        "Active facial eczema, psoriasis, or contact dermatitis",
+        "Shellfish / aspirin allergy (if using specific salicylic formulas)"
+      ],
+      "pre_care": "Discontinue topical retinoids, AHA/BHA exfoliants 3 days prior.",
+      "post_care": "No makeup for 12 hours. Keep skin hydrated with barrier repair cream. Mandatory sunscreen application.",
+      "roman_urdu_summary": "HydraFacial ke baad 12 ghantay tak makeup na lagayein. Skin ko hydrate rakhein aur dhoop mein nikalte waqt sunblock ka istemal karein."
+    },
+    {
+      "id": "PROT-CARBON-01",
+      "treatment": "Carbon Laser Peel (Hollywood Laser Facial)",
+      "laser_type": "Q-Switched Nd:YAG Laser (1064nm)",
+      "recommended_parameters": "Short-pulsed mode (Spectra mode) for carbon warm-up, followed by Q-switched mode (Fluence 1.8 - 2.4 J/cm², Spot Size 7-8mm) to vaporize carbon.",
+      "indications": ["Enlarged pores", "Oily/congested skin", "Dull complexion", "Post-inflammatory hyperpigmentation"],
+      "contraindications": ["Active open sores", "Sunburned skin", "Roaccutane within 6 months"],
+      "post_care": "Mild erythema fades within 1-2 hours. Apply soothing sheet mask. Strict sun avoidance for 7 days.",
+      "roman_urdu_summary": "Carbon peel pore size kam karne aur skin glow ke liye behtareen hai. Procedure ke baad halki surkhi 1-2 ghantay mein khatam ho jati hai."
+    },
+    {
+      "id": "PROT-INJECT-01",
+      "treatment": "Botulinum Toxin (Botox / Dysport)",
+      "target_areas": ["Glabella (Frown lines: 15-20 Units)", "Frontalis (Forehead lines: 10-15 Units)", "Crow's Feet (Orbicularis Oculi: 12-24 Units)"],
+      "reconstitution": "100 Units vial reconstituted with 2.5ml sterile preservative-free 0.9% saline.",
+      "contraindications": [
+        "Myasthenia Gravis or Lambert-Eaton syndrome",
+        "Pregnancy and lactation",
+        "Infection at injection site",
+        "Allergy to botulinum toxin or human albumin"
+      ],
+      "post_care": "Keep head upright for 4 hours. No intense exercise, gym, or massaging face for 24 hours. Full onset in 7-14 days.",
+      "roman_urdu_summary": "Botox ke baad 4 ghantay tak seedha baithein, jhukne ya laytne se gurez karein. 24 ghantay tak chehre par massage ya sakht exercise na karein."
+    },
+    {
+      "id": "PROT-PEEL-01",
+      "treatment": "Chemical Peels (Salicylic Acid 20%, Glycolic Acid 35%, TCA 15%)",
+      "indications": ["Melasma", "Active Acne Comedones", "Uneven Skin Tone", "Fine Lines"],
+      "neutralization": "Monitor frosting / erythema. Neutralize with Sodium Bicarbonate buffer at 3-5 minutes or immediately if uneven frosting appears.",
+      "contraindications": ["Dark phototypes without pre-conditioning", "Recent sun exposure", "History of post-inflammatory hyperpigmentation without prepping"],
+      "post_care": "Do NOT pick or peel flaking skin. Generously apply ceramides and physical sunscreen.",
+      "roman_urdu_summary": "Peeling ke baad skin utarne lage to hath se na kheenchein. Barrier cream lagayein aur direct dhoop se bachein."
+    }
+  ],
+  "faq_knowledge": [
+    {
+      "question": "Can I do laser hair removal if I am taking Roaccutane (Isotretinoin)?",
+      "answer": "No. Patients on oral Isotretinoin must pause treatment and wait at least 6 months after completing their course before undergoing laser hair removal or ablative peels due to impaired wound healing and risk of scarring."
+    },
+    {
+      "question": "Kitne din baad HydraFacial ke results nazar aate hain?",
+      "answer": "HydraFacial ka glowing result foran (same day) nazar aata hai aur 2-4 haftay tak barkarar rehta hai. Behtareen nataij ke liye monthly session recommended hai."
+    },
+    {
+      "question": "What should I do if a patient experiences excessive erythema after laser?",
+      "answer": "Apply immediate cold ice packs or hydrogel cooling pads for 15 minutes. Apply 1% Hydrocortisone cream or Calamine/Aloe Vera lotion. Mandate zero sun exposure and monitor over 24 hours."
+    }
+  ]
+}

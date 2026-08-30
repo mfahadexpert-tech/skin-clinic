@@ -1,0 +1,22 @@
+# Node and Next.js generated files
+node_modules/
+.next/
+out/
+dist/
+
+# Secret API keys
+.env
+.env.local
+.env.*
+!.env.example
+server/.env
+client/.env.local
+
+# Python generated files
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editor files
+.vscode/
