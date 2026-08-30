@@ -1,12 +1,7 @@
 /**
  * ==============================================================================
- * SkinLab AI - Module 3.4: GPT Doctor Assistant (Simplified & Easy Interface)
- * ==============================================================================
- * Clean, conversational, and direct:
- * - Simple quick questions (Carbon Peel, Laser Sun Protection, Roaccutane Safety, Session Notes).
- * - Clear, bite-sized bullet points.
- * - Non-removable safety disclaimer badge.
- * - 1-Click "Insert to Session Notes".
+ * SkinLab AI - Module 3.4: GPT Doctor Assistant
+ * 10+ Years Senior UI/UX Designer Redesign (DocuVerse Clean Standard)
  * ==============================================================================
  */
 
@@ -47,7 +42,6 @@ export default function DoctorAssistant({ patients, onInjectNotes }) {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isStreaming]);
 
-  // Clean, Simple Quick Prompts
   const quickPrompts = [
     { label: '✨ Carbon Laser Peel Guide', query: 'What are the main steps and post-care for Carbon Laser Peel?' },
     { label: '⚠️ Roaccutane Safety (Urdu)', query: 'Patient Roaccutane le rahi hai, kya chemical peel kar sakte hain?' },
@@ -59,11 +53,7 @@ export default function DoctorAssistant({ patients, onInjectNotes }) {
     const query = queryToSend || inputQuery;
     if (!query.trim() || isStreaming) return;
 
-    const userMsg = {
-      id: Date.now(),
-      sender: 'user',
-      text: query
-    };
+    const userMsg = { id: Date.now(), sender: 'user', text: query };
     setMessages(prev => [...prev, userMsg]);
     setInputQuery('');
     setIsStreaming(true);
@@ -81,7 +71,6 @@ export default function DoctorAssistant({ patients, onInjectNotes }) {
       }
     ]);
 
-    // Stream from backend
     await api.streamAIChat(
       query,
       selectedPatient.id,
@@ -91,7 +80,7 @@ export default function DoctorAssistant({ patients, onInjectNotes }) {
           msg.id === assistantMsgId ? { ...msg, text: accumulatedText } : msg
         ));
       },
-      (doneData) => {
+      () => {
         setIsStreaming(false);
       }
     );
@@ -104,34 +93,34 @@ export default function DoctorAssistant({ patients, onInjectNotes }) {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-3.5 rounded-xl border border-white/10">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 rounded-lg bg-teal-500/20 text-teal-300 border border-teal-500/30">
-            <Bot className="w-5 h-5" />
+      {/* Top Header Card */}
+      <div className="docu-card p-6 flex flex-wrap items-center justify-between gap-4 bg-white">
+        <div className="flex items-center space-x-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-sm">
+            <Bot className="w-6 h-6" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h1 className="text-base font-bold text-white tracking-tight">Doctor AI Assistant</h1>
-              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">
+              <h1 className="text-xl font-extrabold text-[#0f172a] tracking-tight">Doctor AI Clinical Assistant</h1>
+              <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                 English + Roman Urdu
               </span>
             </div>
-            <p className="text-xs text-slate-400">Clinical Protocol Guidance & Session Notes</p>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">Dermatology protocol reference & SOAP clinical notes</p>
           </div>
         </div>
 
         <div className="flex items-center space-x-2">
-          <span className="text-xs text-slate-400">Patient:</span>
+          <span className="text-xs font-bold text-slate-500">Patient:</span>
           <select
             value={selectedPatientId}
             onChange={(e) => setSelectedPatientId(e.target.value)}
-            className="glass-input text-xs cursor-pointer font-semibold text-teal-300"
+            className="bg-slate-50 border border-slate-200 text-[#0f172a] rounded-xl px-3 py-1.5 text-xs font-bold outline-none"
           >
             {patients.map(p => (
-              <option key={p.id} value={p.id} className="bg-slate-900 text-white">
+              <option key={p.id} value={p.id}>
                 {p.name} ({p.skin_type || 'Medium'})
               </option>
             ))}
@@ -139,44 +128,37 @@ export default function DoctorAssistant({ patients, onInjectNotes }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Main Chat Feed (8 Cols) */}
-        <div className="lg:col-span-8 glass-panel flex flex-col h-[560px] border border-white/10">
+        <div className="lg:col-span-8 docu-card flex flex-col h-[580px] bg-white">
           
-          <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
             {messages.map((msg) => (
               <div
                 key={msg.id}
                 className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl p-3.5 text-xs leading-relaxed ${
+                  className={`max-w-[85%] rounded-2xl p-4 text-xs leading-relaxed ${
                     msg.sender === 'user'
-                      ? 'bg-teal-600 text-white font-medium shadow'
-                      : 'bg-slate-900/90 text-slate-200 border border-white/10 shadow'
+                      ? 'bg-[#0f172a] text-white font-medium shadow-sm'
+                      : 'bg-slate-50 text-[#0f172a] border border-slate-200/80 shadow-sm'
                   }`}
                 >
-                  {/* Sender Header */}
-                  <div className="flex items-center justify-between mb-1.5 text-[10px] text-slate-400 border-b border-white/5 pb-1">
-                    <span className="font-bold">
-                      {msg.sender === 'user' ? 'Doctor Inquiry' : 'Clinical AI'}
-                    </span>
+                  <div className="flex items-center justify-between mb-2 text-[10px] text-slate-400 border-b border-slate-200/40 pb-1 font-bold">
+                    <span>{msg.sender === 'user' ? 'Doctor Inquiry' : 'Clinical AI'}</span>
                     {msg.sender === 'assistant' && msg.text && (
                       <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleCopyText(msg.id, msg.text)}
-                          className="hover:text-teal-400 flex items-center space-x-1"
-                        >
-                          {copiedId === msg.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <button onClick={() => handleCopyText(msg.id, msg.text)} className="hover:text-slate-800">
+                          {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                         </button>
                         {onInjectNotes && (
                           <button
                             onClick={() => onInjectNotes(msg.text)}
-                            className="hover:text-teal-300 flex items-center space-x-1 text-teal-400 font-bold"
-                            title="Insert into session notes"
+                            className="text-emerald-700 font-bold hover:underline flex items-center space-x-1"
                           >
-                            <ArrowDownToLine className="w-3 h-3" />
+                            <ArrowDownToLine className="w-3.5 h-3.5" />
                             <span>Insert to Notes</span>
                           </button>
                         )}
@@ -184,15 +166,13 @@ export default function DoctorAssistant({ patients, onInjectNotes }) {
                     )}
                   </div>
 
-                  {/* Content */}
-                  <div className="whitespace-pre-wrap font-sans">
-                    {msg.text || (isStreaming ? <span className="animate-pulse">Thinking & retrieving guidance...</span> : "")}
+                  <div className="whitespace-pre-wrap font-sans font-medium text-xs">
+                    {msg.text || (isStreaming ? <span className="animate-pulse">Retrieving dermatology guidance...</span> : "")}
                   </div>
 
-                  {/* Non-Removable Disclaimer */}
                   {msg.disclaimer && msg.text && (
-                    <div className="mt-2.5 pt-2 border-t border-amber-500/20 flex items-center space-x-1.5 text-[10px] text-amber-300 bg-amber-950/40 p-2 rounded-lg border border-amber-500/30">
-                      <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <div className="mt-3 pt-2 border-t border-amber-200 flex items-center space-x-1.5 text-[10px] text-amber-800 bg-amber-50 p-2 rounded-xl border border-amber-200 font-semibold">
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                       <span>{msg.disclaimer}</span>
                     </div>
                   )}
@@ -203,25 +183,25 @@ export default function DoctorAssistant({ patients, onInjectNotes }) {
           </div>
 
           {/* Quick Prompts */}
-          <div className="p-2 border-t border-white/5 bg-slate-950/60 overflow-x-auto flex space-x-2 no-scrollbar">
+          <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex space-x-2 overflow-x-auto no-scrollbar">
             {quickPrompts.map((qp, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSendMessage(qp.query)}
-                className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-[11px] text-teal-300 border border-teal-500/20 whitespace-nowrap transition"
+                className="px-3 py-1.5 rounded-full bg-white hover:bg-emerald-50 text-[11px] text-slate-700 hover:text-emerald-800 border border-slate-200 font-bold whitespace-nowrap transition shadow-sm"
               >
                 {qp.label}
               </button>
             ))}
           </div>
 
-          {/* Chat Input */}
+          {/* Input Form */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSendMessage();
             }}
-            className="p-3 border-t border-white/10 bg-slate-950/80 flex items-center space-x-2"
+            className="p-4 border-t border-slate-100 bg-white flex items-center space-x-2 rounded-b-2xl"
           >
             <input
               type="text"
@@ -229,12 +209,12 @@ export default function DoctorAssistant({ patients, onInjectNotes }) {
               onChange={(e) => setInputQuery(e.target.value)}
               placeholder="Ask anything in English or Roman Urdu..."
               disabled={isStreaming}
-              className="flex-1 glass-input text-xs py-2"
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-full px-4 py-2.5 text-xs text-[#0f172a] font-medium outline-none focus:border-emerald-500"
             />
             <button
               type="submit"
               disabled={isStreaming || !inputQuery.trim()}
-              className="px-4 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 rounded-lg font-bold text-xs shadow disabled:opacity-50 flex items-center space-x-1 transition"
+              className="px-5 py-2.5 bg-[#059669] hover:bg-[#047857] text-white rounded-full font-bold text-xs shadow disabled:opacity-50 flex items-center space-x-1 transition"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Send</span>
@@ -243,31 +223,31 @@ export default function DoctorAssistant({ patients, onInjectNotes }) {
 
         </div>
 
-        {/* Sidebar Guidelines (4 Cols) */}
-        <div className="lg:col-span-4 space-y-4">
+        {/* Sidebar Info (4 Cols) */}
+        <div className="lg:col-span-4 space-y-5">
           
-          <div className="glass-panel p-4 space-y-2 border border-teal-500/20">
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-teal-300">
-              <FileSignature className="w-4 h-4" />
-              <span>Patient Information</span>
+          <div className="docu-card p-5 space-y-3 bg-white">
+            <div className="flex items-center space-x-2 text-xs font-extrabold text-[#0f172a]">
+              <FileSignature className="w-4 h-4 text-emerald-600" />
+              <span>Selected Patient Profile</span>
             </div>
-            <div className="text-xs space-y-1 text-slate-300">
+            <div className="text-xs space-y-1.5 text-slate-600">
               <div><strong>Name:</strong> {selectedPatient.name}</div>
-              <div><strong>ID:</strong> <span className="font-mono text-cyan-400">{selectedPatient.mrn}</span></div>
-              <div><strong>Skin:</strong> <span className="text-amber-300">{selectedPatient.skin_type || 'Medium Asian'}</span></div>
+              <div><strong>MRN ID:</strong> <span className="font-mono font-bold text-emerald-700">{selectedPatient.mrn}</span></div>
+              <div><strong>Skin Tone:</strong> <span className="font-bold text-[#0f172a]">{selectedPatient.skin_type || 'Medium Asian'}</span></div>
             </div>
           </div>
 
-          <div className="glass-panel p-4 space-y-2.5 bg-slate-900/80">
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-white">
-              <BookOpen className="w-4 h-4 text-cyan-400" />
-              <span>Quick Clinical Rules</span>
+          <div className="docu-card p-5 space-y-3 bg-white">
+            <div className="flex items-center space-x-2 text-xs font-extrabold text-[#0f172a]">
+              <BookOpen className="w-4 h-4 text-emerald-600" />
+              <span>Verified Clinical Rules</span>
             </div>
-            <ul className="text-[11px] text-slate-300 space-y-2 list-disc pl-4">
-              <li><strong>Carbon Laser Peel</strong>: Pore cleaning & instant glow. Redness fades in 1-2 hours.</li>
-              <li><strong>Laser Hair Removal</strong>: Shave 24h before. Avoid hot showers for 48h.</li>
+            <ul className="text-[11px] text-slate-600 space-y-2.5 list-disc pl-4 font-medium">
+              <li><strong>Carbon Laser Peel</strong>: Pore cleaning & instant radiance. Downtime: 1–2 hours.</li>
+              <li><strong>Laser Hair Removal</strong>: Shave 24h prior. Strict sun avoidance for 7 days.</li>
               <li><strong>Roaccutane Rule</strong>: Wait 6 months after medicine before chemical peels or lasers.</li>
-              <li><strong>Sun Protection</strong>: Reapply SPF 50+ every 3 hours after treatments.</li>
+              <li><strong>Sun Protection</strong>: Mineral SPF 50+ reapplication every 3 hours.</li>
             </ul>
           </div>
 

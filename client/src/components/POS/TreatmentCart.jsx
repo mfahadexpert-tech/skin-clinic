@@ -1,110 +1,94 @@
 /**
  * ==============================================================================
- * SkinLab AI - POS Interactive Treatment Cart Component
- * ==============================================================================
- * Renders the table of selected treatments and bundled deals with:
- * - Service Name & SKU tags
- * - "Sessions Allowed" vs "Used Now" session counters
- * - Unit price and line item total calculation
- * - 1-Click removal button
+ * SkinLab AI - Module 3.2: Treatment Cart Component
+ * High Contrast DocuVerse Redesign
  * ==============================================================================
  */
 
 'use client';
 
 import React from 'react';
-import { Trash2, Plus, Minus, Layers, AlertCircle } from 'lucide-react';
+import { Trash2, Plus, Minus, Layers } from 'lucide-react';
 
 export default function TreatmentCart({ cart, onRemoveItem, onUpdateItem }) {
   if (cart.length === 0) {
     return (
-      <div className="py-8 text-center text-slate-400">
-        <AlertCircle className="w-8 h-8 mx-auto mb-2 text-slate-500 opacity-60" />
-        <p className="text-xs">No procedures or items added to current cart.</p>
-        <p className="text-[11px] text-slate-500 mt-1">Search or click services above to begin billing.</p>
+      <div className="py-8 text-center text-slate-400 text-xs font-medium space-y-1">
+        <div>Cart is currently empty</div>
+        <p className="text-[11px] text-slate-400">Search and select procedures from above to start billing</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-bold text-white flex items-center space-x-1.5">
-          <Layers className="w-3.5 h-3.5 text-teal-400" />
-          <span>Active Cart Line Items ({cart.length})</span>
-        </h3>
-        <span className="text-[11px] text-slate-400">Used Now = Consumed today</span>
+      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+        <span className="text-xs font-bold text-[#0f172a]">Treatment Cart ({cart.length} items)</span>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
-            <tr className="border-b border-white/10 text-slate-400 text-[11px]">
-              <th className="py-2 px-2">Service / Procedure Name</th>
-              <th className="py-2 px-2 text-center">Sessions Allowed</th>
-              <th className="py-2 px-2 text-center">Used Now</th>
-              <th className="py-2 px-2 text-right">Price (PKR)</th>
-              <th className="py-2 px-1 text-center">Action</th>
+            <tr className="border-b border-slate-100 text-slate-500 font-bold uppercase text-[10px]">
+              <th className="py-2 px-2">Procedure</th>
+              <th className="py-2 px-2 text-center">Sessions</th>
+              <th className="py-2 px-2 text-right">Price</th>
+              <th className="py-2 px-2 text-right">Total</th>
+              <th className="py-2 px-2 text-center">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="divide-y divide-slate-100">
             {cart.map((item, idx) => (
-              <tr key={idx} className="hover:bg-slate-800/40 transition">
+              <tr key={idx} className="hover:bg-slate-50/80 transition">
                 
-                {/* Service Name & Deal tags */}
-                <td className="py-2.5 px-2">
-                  <div className="font-semibold text-slate-200">{item.product_name}</div>
+                {/* Item Name */}
+                <td className="py-3 px-2">
+                  <div className="font-bold text-[#0f172a] text-xs">{item.product_name}</div>
                   {item.item_group_name && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/30">
-                      📦 {item.item_group_name}
+                    <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full mt-0.5 inline-block">
+                      {item.item_group_name}
                     </span>
                   )}
                 </td>
 
-                {/* Total Sessions Allowed in Deal */}
-                <td className="py-2.5 px-2 text-center font-mono">
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">
-                    {item.sessions_allowed} Sess
-                  </span>
-                </td>
-
-                {/* Used Now Counter */}
-                <td className="py-2.5 px-2 text-center">
-                  <div className="inline-flex items-center space-x-1.5 bg-slate-900 border border-white/10 rounded-lg p-1">
+                {/* Session Counter */}
+                <td className="py-3 px-2 text-center">
+                  <div className="inline-flex items-center space-x-1.5 bg-slate-100 p-1 rounded-lg">
                     <button
-                      type="button"
-                      onClick={() => onUpdateItem(idx, 'sessions_consumed', Math.max(0, item.sessions_consumed - 1))}
-                      className="w-5 h-5 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                      onClick={() => onUpdateItem(idx, 'sessions_allowed', Math.max(1, item.sessions_allowed - 1))}
+                      className="w-5 h-5 rounded bg-white text-slate-700 flex items-center justify-center font-bold hover:bg-slate-200"
                     >
-                      <Minus className="w-2.5 h-2.5" />
+                      -
                     </button>
-                    <span className="font-bold text-teal-300 font-mono w-4 text-center">
-                      {item.sessions_consumed}
+                    <span className="font-mono font-bold text-xs text-[#0f172a] px-1">
+                      {item.sessions_consumed}/{item.sessions_allowed}
                     </span>
                     <button
-                      type="button"
-                      onClick={() => onUpdateItem(idx, 'sessions_consumed', Math.min(item.sessions_allowed, item.sessions_consumed + 1))}
-                      className="w-5 h-5 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                      onClick={() => onUpdateItem(idx, 'sessions_allowed', item.sessions_allowed + 1)}
+                      className="w-5 h-5 rounded bg-white text-slate-700 flex items-center justify-center font-bold hover:bg-slate-200"
                     >
-                      <Plus className="w-2.5 h-2.5" />
+                      +
                     </button>
                   </div>
                 </td>
 
-                {/* Line Total */}
-                <td className="py-2.5 px-2 text-right font-bold text-teal-400 font-mono">
+                {/* Unit Price */}
+                <td className="py-3 px-2 text-right font-mono font-bold text-slate-700">
+                  PKR {item.unit_price.toLocaleString()}
+                </td>
+
+                {/* Total */}
+                <td className="py-3 px-2 text-right font-mono font-extrabold text-[#0f172a]">
                   PKR {item.total_price.toLocaleString()}
                 </td>
 
-                {/* Remove Action */}
-                <td className="py-2.5 px-1 text-center">
+                {/* Remove */}
+                <td className="py-3 px-2 text-center">
                   <button
-                    type="button"
                     onClick={() => onRemoveItem(idx)}
-                    className="p-1 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 rounded transition"
-                    title="Remove procedure from cart"
+                    className="p-1 text-slate-400 hover:text-rose-600 transition"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </td>
 

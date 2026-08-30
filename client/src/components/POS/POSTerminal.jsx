@@ -1,12 +1,7 @@
 /**
  * ==============================================================================
- * SkinLab AI - Module 3: Clinic POS & Treatment Billing Terminal (Simplified UI)
- * ==============================================================================
- * Clean, user-friendly, and streamlined for front-desk receptionists:
- * - Simple labels (Patient, Doctor, Skin Tone, Session Notes, Discount, Total)
- * - Quick treatment selection with clear pricing
- * - Easy package session counter (Sessions in Package vs Done Today)
- * - 1-Click Print (Thermal Receipt / Clinical Invoice)
+ * SkinLab AI - Module 3: POS Treatment Billing Terminal
+ * 10+ Years Senior UI/UX Designer Redesign (DocuVerse Clean Standard)
  * ==============================================================================
  */
 
@@ -43,10 +38,9 @@ export default function POSTerminal({
   onRegisterPatient, 
   isOffline 
 }) {
-  // POS Form States
   const [selectedPatientId, setSelectedPatientId] = useState(patients[0]?.id || 1);
   const [selectedDoctorId, setSelectedDoctorId] = useState(doctors[0]?.id || 1);
-  const [sessionRemarks, setSessionRemarks] = useState('Session 1 completed. Advised sunblock.');
+  const [sessionRemarks, setSessionRemarks] = useState('Session 1 completed. Advised SPF 50+.');
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState([
     {
@@ -61,27 +55,18 @@ export default function POSTerminal({
     }
   ]);
 
-  // Payment Calculation States
   const [discountAmount, setDiscountAmount] = useState(0);
   const [taxAmount, setTaxAmount] = useState(0);
   const [paidAmount, setPaidAmount] = useState(6000);
   const [paymentMethod, setPaymentMethod] = useState('cash');
 
-  // Modals & Print States
   const [isAddPatientOpen, setIsAddPatientOpen] = useState(false);
   const [isCustomPackageOpen, setIsCustomPackageOpen] = useState(false);
   const [isSplitCheckoutOpen, setIsSplitCheckoutOpen] = useState(false);
   const [completedSale, setCompletedSale] = useState(null);
-  const [printMode, setPrintMode] = useState('80mm'); // '80mm' or 'a4'
-
-  // Inline Walk-In Registration States
-  const [newPatientName, setNewPatientName] = useState('');
-  const [newPatientPhone, setNewPatientPhone] = useState('');
-  const [newPatientSkin, setNewPatientSkin] = useState('Medium Skin');
+  const [printMode, setPrintMode] = useState('80mm');
 
   const selectedPatient = patients.find(p => p.id === parseInt(selectedPatientId)) || patients[0];
-
-  // Calculate Subtotal & Grand Total
   const subtotal = cart.reduce((acc, item) => acc + item.total_price, 0);
   const grandTotal = Math.max(0, subtotal - discountAmount + taxAmount);
 
@@ -89,7 +74,6 @@ export default function POSTerminal({
     setPaidAmount(grandTotal);
   }, [grandTotal]);
 
-  // Add Treatment to Cart
   const handleAddProduct = (product) => {
     const existingIndex = cart.findIndex(item => item.product_id === product.id && !item.item_group_name);
     if (existingIndex > -1) {
@@ -115,7 +99,6 @@ export default function POSTerminal({
     }
   };
 
-  // Add Package Deal to Cart
   const handleAddDeal = (deal) => {
     const dealItems = deal.items.map(item => ({
       product_id: item.product_id,
@@ -128,22 +111,6 @@ export default function POSTerminal({
       total_price: deal.discounted_price
     }));
     setCart([...cart, ...dealItems]);
-  };
-
-  // Add Custom Package
-  const handleAddCustomPackage = (pkg) => {
-    const customItems = pkg.items.map(item => ({
-      product_id: item.product_id,
-      product_name: `${item.product_name} (Bundle)`,
-      quantity: 1,
-      unit_price: item.price_override || 0,
-      sessions_allowed: item.sessions,
-      sessions_consumed: 1,
-      item_group_name: pkg.package_name,
-      total_price: item.price_override || 0
-    }));
-    setCart([...cart, ...customItems]);
-    setIsCustomPackageOpen(false);
   };
 
   const handleRemoveItem = (index) => {
@@ -159,10 +126,9 @@ export default function POSTerminal({
     setCart(updated);
   };
 
-  // Direct Checkout
   const handleDirectCheckout = async () => {
     if (cart.length === 0) {
-      alert('Please add at least one treatment to the cart.');
+      alert('Please select at least one treatment.');
       return;
     }
 
@@ -185,117 +151,92 @@ export default function POSTerminal({
     }
   };
 
-  // Quick Register Patient
-  const handleSaveWalkInPatient = async (e) => {
-    e.preventDefault();
-    if (!newPatientName || !newPatientPhone) return;
-
-    const res = await onRegisterPatient({
-      name: newPatientName,
-      phone: newPatientPhone,
-      skin_type: newPatientSkin
-    });
-
-    if (res && res.patient) {
-      setSelectedPatientId(res.patient.id);
-      setIsAddPatientOpen(false);
-      setNewPatientName('');
-      setNewPatientPhone('');
-    }
-  };
-
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       
-      {/* Top Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-3.5 rounded-xl border border-white/10">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 rounded-lg bg-teal-500/20 text-teal-300 border border-teal-500/30">
-            <ShoppingCart className="w-5 h-5" />
+      {/* Top Banner Card */}
+      <div className="docu-card p-6 flex flex-wrap items-center justify-between gap-4 bg-white">
+        <div className="flex items-center space-x-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-sm">
+            <ShoppingCart className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-white tracking-tight">Treatment Billing & Check-in</h1>
-            <p className="text-xs text-slate-400">Front Desk Counter</p>
+            <h1 className="text-xl font-extrabold text-[#0f172a] tracking-tight">Clinical POS & Treatment Billing</h1>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">Front desk cashier counter & package check-out</p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setIsCustomPackageOpen(true)}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white shadow transition"
-          >
-            <PackagePlus className="w-3.5 h-3.5" />
-            <span>+ Create Custom Package</span>
-          </button>
-        </div>
+        <button
+          onClick={() => setIsCustomPackageOpen(true)}
+          className="flex items-center space-x-2 px-4 py-2.5 rounded-full bg-[#059669] hover:bg-[#047857] text-white text-xs font-bold shadow-md transition"
+        >
+          <PackagePlus className="w-4 h-4" />
+          <span>+ Create Custom Package</span>
+        </button>
       </div>
 
-      {/* Main 2-Column Split Terminal Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      {/* 2-Column Split Terminal Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* LEFT PANEL (7 Cols): Patient Info, Service Search & Cart */}
-        <div className="lg:col-span-7 space-y-4">
+        {/* LEFT COLUMN (7 Cols): Patient, Procedure Catalog & Cart */}
+        <div className="lg:col-span-7 space-y-5">
           
-          {/* Patient Selection */}
-          <div className="glass-panel p-4 space-y-3">
+          {/* Patient Selection Card */}
+          <div className="docu-card p-6 space-y-4 bg-white">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-200">Select Patient</label>
+              <span className="text-xs font-bold text-slate-600">Select Patient</span>
               <button
                 onClick={() => setIsAddPatientOpen(true)}
-                className="text-xs text-teal-400 hover:text-teal-300 flex items-center space-x-1 font-semibold"
+                className="text-xs text-emerald-600 hover:underline font-bold flex items-center space-x-1"
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 <span>+ New Patient</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
               <div className="sm:col-span-8">
                 <select
                   value={selectedPatientId}
                   onChange={(e) => setSelectedPatientId(e.target.value)}
-                  className="w-full glass-input text-xs cursor-pointer"
+                  className="w-full bg-slate-50 border border-slate-200 text-[#0f172a] rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:border-emerald-500"
                 >
                   {patients.map(p => (
-                    <option key={p.id} value={p.id} className="bg-slate-900 text-white">
-                      {p.name} • {p.phone} (ID: {p.mrn})
+                    <option key={p.id} value={p.id}>
+                      {p.name} • {p.phone} (MRN: {p.mrn})
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Status Badges */}
-              <div className="sm:col-span-4 flex items-center space-x-1.5">
-                <span className="text-xs px-2 py-1 rounded-md font-medium bg-slate-800 text-slate-300 border border-white/10 whitespace-nowrap">
+              <div className="sm:col-span-4 flex items-center space-x-2">
+                <span className="text-xs px-2.5 py-1.5 rounded-lg font-bold bg-slate-100 text-slate-700">
                   Visits: {selectedPatient?.visit_count || 0}
                 </span>
 
                 {selectedPatient?.current_balance > 0 ? (
-                  <span className="text-xs px-2 py-1 rounded-md font-bold bg-rose-950/80 text-rose-300 border border-rose-500/30 whitespace-nowrap">
+                  <span className="text-xs px-2.5 py-1.5 rounded-lg font-bold bg-rose-50 text-rose-700 border border-rose-200">
                     Due: PKR {selectedPatient.current_balance}
                   </span>
                 ) : (
-                  <span className="text-xs px-2 py-1 rounded-md font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
+                  <span className="text-xs px-2.5 py-1.5 rounded-lg font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                     Wallet: PKR {selectedPatient?.advance_balance || 0}
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Doctor & Notes */}
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
+            {/* Doctor & Session Notes */}
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-2 border-t border-slate-100">
               <div className="sm:col-span-6">
-                <label className="text-[11px] text-slate-400 flex items-center space-x-1 mb-1">
-                  <Stethoscope className="w-3 h-3 text-teal-400" />
-                  <span>Treating Specialist</span>
-                </label>
+                <label className="text-[11px] font-bold text-slate-500 block mb-1">Treating Specialist</label>
                 <select
                   value={selectedDoctorId}
                   onChange={(e) => setSelectedDoctorId(e.target.value)}
-                  className="w-full glass-input text-xs"
+                  className="w-full bg-slate-50 border border-slate-200 text-[#0f172a] rounded-xl px-3 py-2 text-xs font-semibold outline-none"
                 >
                   {doctors.map(d => (
-                    <option key={d.id} value={d.id} className="bg-slate-900 text-white">
+                    <option key={d.id} value={d.id}>
                       {d.name} ({d.designation})
                     </option>
                   ))}
@@ -303,92 +244,54 @@ export default function POSTerminal({
               </div>
 
               <div className="sm:col-span-6">
-                <label className="text-[11px] text-slate-400 flex items-center space-x-1 mb-1">
-                  <FileText className="w-3 h-3 text-teal-400" />
-                  <span>Session Notes</span>
-                </label>
+                <label className="text-[11px] font-bold text-slate-500 block mb-1">Session Remarks</label>
                 <input
                   type="text"
                   value={sessionRemarks}
                   onChange={(e) => setSessionRemarks(e.target.value)}
                   placeholder="e.g. Session 1 done, SPF 50 advised"
-                  className="w-full glass-input text-xs"
+                  className="w-full bg-slate-50 border border-slate-200 text-[#0f172a] rounded-xl px-3 py-2 text-xs font-medium outline-none"
                 />
               </div>
             </div>
           </div>
 
-          {/* Treatment Search */}
-          <div className="glass-panel p-4 space-y-3">
+          {/* Procedure Search & Quick Add */}
+          <div className="docu-card p-6 space-y-4 bg-white">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
               <input
                 type="text"
-                placeholder="Search procedures (HydraFacial, Laser, Carbon Peel, Sunblock)..."
+                placeholder="Search procedures (HydraFacial, Laser, Carbon Peel, Botox)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full glass-input pl-8 text-xs py-2"
+                className="w-full bg-slate-50 border border-slate-200 rounded-full pl-10 pr-4 py-2 text-xs text-[#0f172a] font-medium outline-none"
               />
             </div>
 
-            {/* Quick Service Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-44 overflow-y-auto pr-1">
               {products
-                .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase()))
+                .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
                 .map(prod => (
                   <div
                     key={prod.id}
                     onClick={() => handleAddProduct(prod)}
-                    className="glass-card p-2.5 flex items-center justify-between cursor-pointer hover:border-teal-500/50 hover:bg-slate-800 transition group"
+                    className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-emerald-50 hover:border-emerald-200 cursor-pointer transition flex items-center justify-between group"
                   >
                     <div>
-                      <div className="text-xs font-semibold text-slate-200 group-hover:text-teal-300">
-                        {prod.name}
-                      </div>
-                      <div className="text-[10px] text-slate-400">
-                        {prod.is_service ? 'Procedure' : 'Skincare Item'}
-                      </div>
+                      <div className="text-xs font-bold text-[#0f172a] group-hover:text-emerald-700">{prod.name}</div>
+                      <div className="text-[10px] text-slate-500 font-medium">{prod.is_service ? 'Clinical Procedure' : 'Retail'}</div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-xs font-bold text-teal-400">
-                        PKR {prod.selling_price.toLocaleString()}
-                      </div>
-                      <span className="text-[10px] text-teal-400 font-semibold group-hover:underline">+ Select</span>
-                    </div>
+                    <span className="text-xs font-extrabold text-emerald-700 font-mono">
+                      PKR {prod.selling_price.toLocaleString()}
+                    </span>
                   </div>
                 ))}
             </div>
-
-            {/* Featured Deals */}
-            {deals.length > 0 && (
-              <div className="pt-2 border-t border-white/5">
-                <div className="text-[11px] font-semibold text-slate-400 mb-1.5 flex items-center space-x-1">
-                  <Tag className="w-3 h-3 text-cyan-400" />
-                  <span>Special Multi-Session Packages</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {deals.map(deal => (
-                    <div
-                      key={deal.id}
-                      onClick={() => handleAddDeal(deal)}
-                      className="p-2 rounded-lg bg-cyan-950/30 border border-cyan-500/30 hover:border-cyan-400 cursor-pointer transition flex items-center justify-between"
-                    >
-                      <div>
-                        <div className="text-xs font-semibold text-cyan-200">{deal.name}</div>
-                        <div className="text-[10px] text-cyan-400/80">{deal.description}</div>
-                      </div>
-                      <span className="text-xs font-bold text-cyan-300 whitespace-nowrap ml-2">
-                        PKR {deal.discounted_price.toLocaleString()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Cart Table */}
-          <div className="glass-panel p-4">
+          {/* Treatment Cart Table */}
+          <div className="docu-card p-6 bg-white">
             <TreatmentCart
               cart={cart}
               onRemoveItem={handleRemoveItem}
@@ -398,49 +301,49 @@ export default function POSTerminal({
 
         </div>
 
-        {/* RIGHT PANEL (5 Cols): Checkout, Price Summary, Print Mode */}
-        <div className="lg:col-span-5 space-y-4">
+        {/* RIGHT COLUMN (5 Cols): Price Summary & Checkout */}
+        <div className="lg:col-span-5 space-y-5">
           
-          <div className="glass-panel p-5 space-y-4">
+          <div className="docu-card p-6 space-y-5 bg-white">
             
-            {/* Token Badge */}
-            <div className="flex items-center justify-between bg-slate-900 p-3 rounded-xl border border-teal-500/30">
+            {/* Queue Token Badge */}
+            <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
               <div>
-                <span className="text-[10px] uppercase font-bold text-teal-400">Waiting Queue Token</span>
-                <div className="text-2xl font-black text-white font-mono">P-01</div>
+                <span className="text-[10px] uppercase font-extrabold text-emerald-800 tracking-wider">Queue Token</span>
+                <div className="text-3xl font-black text-[#0f172a] font-mono mt-0.5">P-01</div>
               </div>
               <div className="text-right">
-                <span className="text-[10px] text-slate-400">Room Allocation</span>
-                <div className="text-xs font-semibold text-teal-300">Treatment Suite 2</div>
+                <span className="text-[10px] text-slate-500 font-medium">Room Assigned</span>
+                <div className="text-xs font-bold text-emerald-800">Treatment Suite 2</div>
               </div>
             </div>
 
             {/* Calculations */}
-            <div className="space-y-2 pt-2 border-t border-white/5 text-xs">
-              <div className="flex justify-between text-slate-300">
+            <div className="space-y-3 pt-2 border-t border-slate-100 text-xs">
+              <div className="flex justify-between text-slate-600 font-semibold">
                 <span>Subtotal:</span>
-                <span className="font-semibold font-mono">PKR {subtotal.toLocaleString()}</span>
+                <span className="font-mono font-bold text-[#0f172a]">PKR {subtotal.toLocaleString()}</span>
               </div>
 
-              <div className="flex items-center justify-between text-slate-300">
+              <div className="flex items-center justify-between text-slate-600 font-semibold">
                 <span>Discount (PKR):</span>
                 <input
                   type="number"
                   value={discountAmount}
                   onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
-                  className="w-24 glass-input text-right text-xs py-1"
+                  className="w-24 bg-slate-50 border border-slate-200 text-right text-xs py-1 px-2 rounded-lg font-mono font-bold outline-none"
                 />
               </div>
 
-              <div className="flex justify-between items-center text-sm font-bold text-white pt-2 border-t border-white/10">
-                <span className="text-teal-300">Total Payable:</span>
-                <span className="text-lg font-black text-teal-400 font-mono">PKR {grandTotal.toLocaleString()}</span>
+              <div className="flex justify-between items-center text-sm font-bold text-[#0f172a] pt-3 border-t border-slate-100">
+                <span>Total Payable:</span>
+                <span className="text-2xl font-black text-emerald-600 font-mono">PKR {grandTotal.toLocaleString()}</span>
               </div>
             </div>
 
-            {/* Payment Method */}
-            <div className="space-y-2 pt-2 border-t border-white/5">
-              <label className="text-xs font-bold text-slate-200">Payment Mode</label>
+            {/* Payment Method Pills */}
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <label className="text-xs font-bold text-[#0f172a]">Payment Method</label>
               <div className="grid grid-cols-2 gap-2">
                 {['cash', 'card', 'split', 'wallet'].map(mode => (
                   <button
@@ -450,10 +353,10 @@ export default function POSTerminal({
                       setPaymentMethod(mode);
                       if (mode === 'split') setIsSplitCheckoutOpen(true);
                     }}
-                    className={`py-2 px-2 rounded-lg text-xs font-semibold capitalize transition ${
+                    className={`py-2 px-3 rounded-xl text-xs font-bold capitalize transition ${
                       paymentMethod === mode
-                        ? 'bg-teal-500 text-slate-950 font-bold'
-                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        ? 'bg-[#0f172a] text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`}
                   >
                     {mode}
@@ -465,177 +368,38 @@ export default function POSTerminal({
             {/* Paid Amount */}
             {paymentMethod !== 'split' && (
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-200">Amount Paid Now (PKR)</label>
+                <label className="text-xs font-bold text-[#0f172a]">Amount Paid Now (PKR)</label>
                 <input
                   type="number"
                   value={paidAmount}
                   onChange={(e) => setPaidAmount(parseFloat(e.target.value) || 0)}
-                  className="w-full glass-input text-sm font-bold text-teal-300 py-2"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-base font-extrabold text-[#0f172a] font-mono outline-none focus:border-emerald-500"
                 />
-                {paidAmount < grandTotal && (
-                  <div className="text-[11px] text-rose-400 flex items-center space-x-1 mt-1">
-                    <AlertCircle className="w-3 h-3" />
-                    <span>PKR {(grandTotal - paidAmount).toLocaleString()} recorded as remaining due</span>
-                  </div>
-                )}
               </div>
             )}
 
-            {/* Print Selection */}
-            <div className="flex items-center justify-between text-xs text-slate-300 pt-1">
-              <span>Receipt Format:</span>
-              <div className="flex items-center space-x-3">
-                <label className="flex items-center space-x-1 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="printMode"
-                    value="80mm"
-                    checked={printMode === '80mm'}
-                    onChange={(e) => setPrintMode(e.target.value)}
-                  />
-                  <span>80mm Thermal Slip</span>
-                </label>
-                <label className="flex items-center space-x-1 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="printMode"
-                    value="a4"
-                    checked={printMode === 'a4'}
-                    onChange={(e) => setPrintMode(e.target.value)}
-                  />
-                  <span>A4 Invoice</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Complete Sale Button */}
+            {/* Complete Sale CTA */}
             <button
               onClick={handleDirectCheckout}
-              className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-slate-950 shadow-lg flex items-center justify-center space-x-2 transition active:scale-98"
+              className="w-full py-3.5 rounded-full font-extrabold text-xs bg-[#059669] hover:bg-[#047857] text-white shadow-md shadow-emerald-700/20 flex items-center justify-center space-x-2 transition"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Complete Sale & Print ({printMode.toUpperCase()})</span>
+              <span>Complete Sale & Print Receipt</span>
             </button>
 
-          </div>
-
-          {/* Quick Doctor Protocol Summary */}
-          <div className="glass-panel p-3.5 bg-slate-900/80 border border-teal-500/20 text-xs space-y-1">
-            <div className="flex items-center space-x-1.5 text-teal-300 font-bold">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Doctor Quick Tip</span>
-            </div>
-            <p className="text-slate-300 leading-relaxed text-[11px]">
-              Skin Type: <strong>Medium Asian</strong>. Always recommend mineral SPF 50+ sunblock after laser and peels. Avoid hot water for 48 hours.
-            </p>
           </div>
 
         </div>
 
       </div>
 
-      {/* MODAL 1: Walk-In Registration */}
-      {isAddPatientOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass-panel p-6 max-w-md w-full border border-white/20 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-              <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-                <UserPlus className="w-4 h-4 text-teal-400" />
-                <span>Quick Register Walk-In Patient</span>
-              </h3>
-              <button onClick={() => setIsAddPatientOpen(false)} className="text-slate-400 hover:text-white">✕</button>
-            </div>
-
-            <form onSubmit={handleSaveWalkInPatient} className="space-y-3 text-xs">
-              <div>
-                <label className="text-slate-300">Patient Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={newPatientName}
-                  onChange={(e) => setNewPatientName(e.target.value)}
-                  placeholder="e.g. Sana Mir"
-                  className="w-full glass-input text-xs mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="text-slate-300">Phone Number *</label>
-                <input
-                  type="text"
-                  required
-                  value={newPatientPhone}
-                  onChange={(e) => setNewPatientPhone(e.target.value)}
-                  placeholder="0300-1234567"
-                  className="w-full glass-input text-xs mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="text-slate-300">Skin Tone / Type</label>
-                <select
-                  value={newPatientSkin}
-                  onChange={(e) => setNewPatientSkin(e.target.value)}
-                  className="w-full glass-input text-xs mt-1"
-                >
-                  <option value="Fair Skin (Burns Easily)">Fair Skin (Burns Easily)</option>
-                  <option value="Medium Asian (Standard)">Medium Asian (Standard)</option>
-                  <option value="Olive / Darker Asian">Olive / Darker Asian</option>
-                  <option value="Brown / Tan Skin">Brown / Tan Skin</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setIsAddPatientOpen(false)}
-                  className="px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 text-xs font-bold bg-teal-500 hover:bg-teal-400 text-slate-950 rounded-lg"
-                >
-                  Save & Select
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 2: Custom Package */}
-      {isCustomPackageOpen && (
-        <CustomPackageModal
-          products={products}
-          onClose={() => setIsCustomPackageOpen(false)}
-          onSave={handleAddCustomPackage}
-        />
-      )}
-
-      {/* MODAL 3: Split Checkout */}
-      {isSplitCheckoutOpen && (
-        <SplitCheckoutModal
-          grandTotal={grandTotal}
-          onClose={() => setIsSplitCheckoutOpen(false)}
-          onSubmit={(splits) => {
-            setIsSplitCheckoutOpen(false);
-            handleDirectCheckout();
-          }}
-        />
-      )}
-
-      {/* Print Previews */}
+      {/* Print Previews Modal */}
       {completedSale && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-slate-900 border border-white/20 p-6 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto space-y-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex items-center space-x-2">
-                <CheckCircle2 className="w-5 h-5 text-teal-400" />
-                <h3 className="text-sm font-bold text-white">Sale Successfully Completed!</h3>
-              </div>
-              <button onClick={() => setCompletedSale(null)} className="text-slate-400 hover:text-white">✕</button>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 p-6 rounded-3xl max-w-2xl w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-[#0f172a]">Sale Completed Successfully!</h3>
+              <button onClick={() => setCompletedSale(null)} className="text-slate-400 hover:text-slate-700">✕</button>
             </div>
 
             <div id="print-area">
@@ -646,37 +410,20 @@ export default function POSTerminal({
               )}
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-white/10">
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setPrintMode('80mm')}
-                  className={`text-xs px-3 py-1.5 rounded-lg font-semibold ${printMode === '80mm' ? 'bg-teal-500 text-slate-950' : 'bg-slate-800 text-slate-300'}`}
-                >
-                  80mm Slip
-                </button>
-                <button
-                  onClick={() => setPrintMode('a4')}
-                  className={`text-xs px-3 py-1.5 rounded-lg font-semibold ${printMode === 'a4' ? 'bg-teal-500 text-slate-950' : 'bg-slate-800 text-slate-300'}`}
-                >
-                  A4 Invoice
-                </button>
-              </div>
-
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => window.print()}
-                  className="flex items-center space-x-1.5 px-4 py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-lg text-xs"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Print</span>
-                </button>
-                <button
-                  onClick={() => setCompletedSale(null)}
-                  className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs"
-                >
-                  Close
-                </button>
-              </div>
+            <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => window.print()}
+                className="flex items-center space-x-1.5 px-4 py-2 bg-[#059669] text-white font-bold rounded-full text-xs shadow"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print</span>
+              </button>
+              <button
+                onClick={() => setCompletedSale(null)}
+                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-full text-xs font-semibold"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
