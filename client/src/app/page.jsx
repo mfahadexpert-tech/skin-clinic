@@ -2,8 +2,8 @@
  * ==============================================================================
  * SkinLab AI - Main Single Page Application (SPA) Controller
  * ==============================================================================
- * Unifies all 12 modules and the AI Suite:
- * - Module 1: Authentication & Role-Based Access Control
+ * Unifies all 12 modules, AI Suite, and RBAC Permission Security:
+ * - Module 1: Production Authentication & Role-Based Access Control (RBAC)
  * - Module 2 & 11: Real-time Analytics & Machine ROI Reports
  * - Module 3: POS Treatment Billing Terminal & Dual-Format Receipting
  * - Module 4: Sales History & Invoicing
@@ -33,10 +33,11 @@ import ServicesMaster from '@/components/Catalog/ServicesMaster';
 import StaffDirectory from '@/components/HRM/StaffDirectory';
 import SupplierPurchases from '@/components/Purchases/SupplierPurchases';
 import ClinicSettings from '@/components/Settings/ClinicSettings';
+import { AuthProvider, ROLE_PERMISSIONS, PermissionDeniedScreen } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import { outboxManager } from '@/lib/outbox';
 
-export default function SkinLabApp() {
+function MainClinicContent() {
   const [activeTab, setActiveTab] = useState('pos');
   const [currentRole, setCurrentRole] = useState('admin');
   const [isOffline, setIsOffline] = useState(false);
@@ -47,7 +48,6 @@ export default function SkinLabApp() {
   const [deals, setDeals] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [sales, setSales] = useState([]);
-  const [injectedSessionRemarks, setInjectedSessionRemarks] = useState('');
 
   const refreshClinicData = async () => {
     try {
@@ -169,10 +169,9 @@ export default function SkinLabApp() {
     alert(`Outbox Synced: ${result.syncedCount} records sent to server.`);
   };
 
-  const handleInjectAINoteToPOS = (noteText) => {
-    setInjectedSessionRemarks(noteText);
-    setActiveTab('pos');
-  };
+  // RBAC Permission Guard
+  const allowedRoles = ROLE_PERMISSIONS[activeTab] || [];
+  const isTabPermitted = allowedRoles.includes(currentRole.toLowerCase()) || currentRole.toLowerCase() === 'owner';
 
   return (
     <div className="min-h-screen pb-12">
@@ -189,74 +188,89 @@ export default function SkinLabApp() {
         onSyncOutbox={handleSyncOutbox}
       />
 
-      {/* Main Content Switcher */}
+      {/* Main Content Switcher with RBAC Security Guard */}
       <main className="max-w-7xl mx-auto px-4">
         
-        {activeTab === 'pos' && (
-          <POSTerminal
-            patients={patients}
-            products={products}
-            deals={deals}
-            doctors={doctors}
-            onCheckout={handleCheckout}
-            onRegisterPatient={handleRegisterPatient}
-            onRegisterDoctor={handleRegisterDoctor}
-            isOffline={isOffline}
+        {!isTabPermitted ? (
+          <PermissionDeniedScreen
+            requiredRoles={allowedRoles}
+            onSwitchRole={(role) => setCurrentRole(role)}
           />
-        )}
+        ) : (
+          <>
+            {activeTab === 'pos' && (
+              <POSTerminal
+                patients={patients}
+                products={products}
+                deals={deals}
+                doctors={doctors}
+                onCheckout={handleCheckout}
+                onRegisterPatient={handleRegisterPatient}
+                onRegisterDoctor={handleRegisterDoctor}
+                isOffline={isOffline}
+              />
+            )}
 
-        {activeTab === 'appointments' && (
-          <AppointmentCalendar />
-        )}
+            {activeTab === 'appointments' && (
+              <AppointmentCalendar />
+            )}
 
-        {activeTab === 'prm' && (
-          <PatientDirectory
-            patients={patients}
-            onRedeemSession={handleRedeemSession}
-            onRegisterPatient={handleRegisterPatient}
-            onDeletePatient={handleDeletePatient}
-          />
-        )}
+            {activeTab === 'prm' && (
+              <PatientDirectory
+                patients={patients}
+                onRedeemSession={handleRedeemSession}
+                onRegisterPatient={handleRegisterPatient}
+                onDeletePatient={handleDeletePatient}
+              />
+            )}
 
-        {activeTab === 'ai-doctor' && (
-          <DoctorAssistant
-            patients={patients}
-            onInjectNotes={handleInjectAINoteToPOS}
-          />
-        )}
+            {activeTab === 'ai-doctor' && (
+              <DoctorAssistant
+                patients={patients}
+                onInjectNotes={(text) => setActiveTab('pos')}
+              />
+            )}
 
-        {activeTab === 'voice-agent' && (
-          <VoiceBookingAgent />
-        )}
+            {activeTab === 'voice-agent' && (
+              <VoiceBookingAgent />
+            )}
 
-        {activeTab === 'whatsapp' && (
-          <WhatsAppHub
-            patients={patients}
-          />
-        )}
+            {activeTab === 'whatsapp' && (
+              <WhatsAppHub patients={patients} />
+            )}
 
-        {activeTab === 'reports' && (
-          <AnalyticsDashboard />
-        )}
+            {activeTab === 'reports' && (
+              <AnalyticsDashboard />
+            )}
 
-        {activeTab === 'catalog' && (
-          <ServicesMaster />
-        )}
+            {activeTab === 'catalog' && (
+              <ServicesMaster />
+            )}
 
-        {activeTab === 'hrm' && (
-          <StaffDirectory />
-        )}
+            {activeTab === 'hrm' && (
+              <StaffDirectory />
+            )}
 
-        {activeTab === 'purchases' && (
-          <SupplierPurchases sales={sales} />
-        )}
+            {activeTab === 'purchases' && (
+              <SupplierPurchases sales={sales} />
+            )}
 
-        {activeTab === 'settings' && (
-          <ClinicSettings />
+            {activeTab === 'settings' && (
+              <ClinicSettings />
+            )}
+          </>
         )}
 
       </main>
 
     </div>
+  );
+}
+
+export default function SkinLabApp() {
+  return (
+    <AuthProvider>
+      <MainClinicContent />
+    </AuthProvider>
   );
 }
