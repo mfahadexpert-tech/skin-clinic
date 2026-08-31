@@ -1,7 +1,12 @@
 /**
  * ==============================================================================
- * SkinLab AI - Left Navigation Sidebar
- * 100% Matching DocuVerse / Youcare Design Reference (Circled Sections 1 & 2)
+ * SkinLab AI - Navigation & Role-Based Access Control (RBAC) Header
+ * ==============================================================================
+ * Renders the top clinic navigation bar with:
+ * - Clinic Branding Logo & Title
+ * - Module Tab Selectors (POS, PRM, Appointments Calendar, AI Doctor, Voice Agent, etc.)
+ * - Role Switcher (ADMIN, DOCTOR, MANAGER, CASHIER) with live permission badges
+ * - Online / Offline Simulation Toggle with Outbox sync counter
  * ==============================================================================
  */
 
@@ -9,116 +14,152 @@
 
 import React from 'react';
 import { 
-  LayoutDashboard, 
-  Stethoscope, 
+  Sparkles, 
+  ShoppingCart, 
   Users, 
-  Calendar, 
-  CreditCard, 
-  BarChart2, 
-  Settings, 
+  Calendar,
+  Bot, 
   PhoneCall, 
   MessageSquare, 
-  X
+  BarChart3, 
+  Boxes, 
+  UserCheck, 
+  Truck, 
+  Settings, 
+  Wifi, 
+  WifiOff, 
+  ShieldCheck,
+  RefreshCw
 } from 'lucide-react';
 
-export default function Navigation({ activeTab, setActiveTab }) {
-  const menuItems = [
-    { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'ai-doctor', label: 'Doctor', icon: Stethoscope },
-    { id: 'prm', label: 'Patients', icon: Users },
-    { id: 'calendar', label: 'Appointments', icon: Calendar },
-    { id: 'pos', label: 'Billing', icon: CreditCard },
-    { id: 'reports', label: 'Reports', icon: BarChart2 },
-    { id: 'settings', label: 'Settings', icon: Settings },
+export default function Navigation({ 
+  activeTab, 
+  setActiveTab, 
+  currentRole, 
+  setCurrentRole, 
+  isOffline, 
+  setIsOffline, 
+  outboxCount, 
+  onSyncOutbox 
+}) {
+  const navItems = [
+    { id: 'pos', label: 'POS Billing', icon: ShoppingCart, badge: 'Core' },
+    { id: 'appointments', label: 'Appointments', icon: Calendar, badge: 'Live' },
+    { id: 'prm', label: 'Patients (PRM)', icon: Users },
+    { id: 'ai-doctor', label: 'Doctor AI (GPT)', icon: Bot, badge: 'RAG' },
+    { id: 'voice-agent', label: 'Voice Booking', icon: PhoneCall, badge: '24/7' },
+    { id: 'whatsapp', label: 'WhatsApp Hub', icon: MessageSquare },
+    { id: 'reports', label: 'Analytics & ROI', icon: BarChart3 },
+    { id: 'catalog', label: 'Services & Barcodes', icon: Boxes },
+    { id: 'hrm', label: 'HRM & Shifts', icon: UserCheck },
+    { id: 'purchases', label: 'SRM & Refunds', icon: Truck },
+    { id: 'settings', label: 'Settings & Backups', icon: Settings },
+  ];
+
+  const roles = [
+    { id: 'admin', label: 'Admin / Owner' },
+    { id: 'doctor', label: 'Dr. Sarah Khan' },
+    { id: 'manager', label: 'Clinic Manager' },
+    { id: 'cashier', label: 'Reception Cashier' },
   ];
 
   return (
-    <aside className="w-64 bg-white p-6 flex flex-col justify-between rounded-l-[2rem] border-r border-slate-100 min-h-[900px] shrink-0 font-sans">
-      
-      {/* Brand Header & Navigation List (Circled Section 1) */}
-      <div className="space-y-8">
+    <header className="sticky top-0 z-50 glass-panel border-b border-white/10 bg-slate-950/80 backdrop-blur-md px-4 py-2.5 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         
-        {/* Logo (DocuVerse Clover Style) */}
-        <div className="flex items-center space-x-2.5 cursor-pointer" onClick={() => setActiveTab('overview')}>
-          <div className="w-8 h-8 grid grid-cols-2 gap-1">
-            <span className="w-3.5 h-3.5 rounded-full bg-[#10b981]" />
-            <span className="w-3.5 h-3.5 rounded-full bg-[#34d399]" />
-            <span className="w-3.5 h-3.5 rounded-full bg-[#059669]" />
-            <span className="w-3.5 h-3.5 rounded-full bg-[#6ee7b7]" />
+        {/* Clinic Logo & Brand */}
+        <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('pos')}>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-teal-500/20">
+            <Sparkles className="w-5 h-5 text-slate-950" />
           </div>
-          <span className="font-extrabold text-xl text-[#0f172a] tracking-tight">DocuVerse</span>
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="font-bold text-lg text-white tracking-tight">SkinLab</span>
+              <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                AI Clinical OS
+              </span>
+            </div>
+            <p className="text-xs text-slate-400">Aesthetic & Dermatology Practice System</p>
+          </div>
         </div>
 
-        {/* Menu Navigation Items */}
-        <nav className="space-y-1.5">
-          {menuItems.map((item) => {
+        {/* Module Navigation Tabs */}
+        <nav className="flex items-center space-x-1 overflow-x-auto py-1 max-w-3xl no-scrollbar">
+          {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-xs font-semibold transition ${
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                   isActive
-                    ? 'bg-[#f1f5f9] text-[#0f172a] font-bold shadow-sm'
-                    : 'text-slate-500 hover:text-[#0f172a] hover:bg-slate-50'
+                    ? 'bg-teal-500 text-slate-950 shadow-md shadow-teal-500/25 font-semibold'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-3.5 h-3.5" />
                 <span>{item.label}</span>
+                {item.badge && (
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                    isActive ? 'bg-slate-950/30 text-slate-900 font-bold' : 'bg-teal-900/50 text-teal-300 border border-teal-600/30'
+                  }`}>
+                    {item.badge}
+                  </span>
+                )}
               </button>
             );
           })}
         </nav>
 
-      </div>
-
-      {/* Bottom Profile & AI Health Update Card (Circled Section 2) */}
-      <div className="space-y-4 pt-6">
-        
-        {/* Profile Chip */}
-        <div className="flex items-center space-x-3 px-1">
-          <img
-            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
-            className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-sm"
-          />
-          <div>
-            <div className="font-bold text-xs text-[#0f172a]">Darlene Robertson</div>
-            <div className="text-[10px] text-slate-400 font-mono font-medium">ID: 72630284</div>
-          </div>
-        </div>
-
-        {/* AI Health Update Card */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-[#dcfce7] via-[#f0fdf4] to-[#fefce8] border border-[#bbf7d0] space-y-3 relative overflow-hidden shadow-sm">
+        {/* Controls: Role Switcher & Offline Mode */}
+        <div className="flex items-center space-x-3">
           
-          <div className="flex items-center justify-between">
-            <span className="font-bold text-xs text-[#0f172a]">AI Health Update</span>
-            <button className="text-slate-400 hover:text-slate-700">
-              <X className="w-3.5 h-3.5" />
+          {/* Offline / Online Status */}
+          <div className="flex items-center space-x-1.5 bg-slate-900/80 border border-white/10 px-2.5 py-1 rounded-lg">
+            <button
+              onClick={() => setIsOffline(!isOffline)}
+              className={`flex items-center space-x-1 text-xs px-2 py-0.5 rounded transition ${
+                isOffline 
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' 
+                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+              }`}
+              title="Click to toggle offline mode simulation"
+            >
+              {isOffline ? <WifiOff className="w-3 h-3 mr-1 text-amber-400 animate-pulse" /> : <Wifi className="w-3 h-3 mr-1 text-emerald-400" />}
+              <span>{isOffline ? 'Offline Mode' : 'Online (PWA)'}</span>
             </button>
+
+            {outboxCount > 0 && (
+              <button
+                onClick={onSyncOutbox}
+                className="flex items-center space-x-1 text-[11px] bg-teal-600 hover:bg-teal-500 text-white px-2 py-0.5 rounded transition animate-bounce"
+                title="Sync pending offline outbox records"
+              >
+                <RefreshCw className="w-2.5 h-2.5" />
+                <span>Sync ({outboxCount})</span>
+              </button>
+            )}
           </div>
 
-          <div className="p-3 rounded-xl bg-white/80 backdrop-blur-sm border border-white space-y-1.5 shadow-sm">
-            <div className="text-[10px] font-bold text-emerald-900">Advantages</div>
-            <p className="text-[11px] text-slate-700 font-medium leading-tight">
-              New AI engine improves diagnosis accuracy by 27%
-            </p>
-            <svg className="w-full h-5 pt-1" viewBox="0 0 100 20">
-              <path d="M 0 15 Q 25 5, 50 15 T 100 8" fill="none" stroke="#10b981" strokeWidth="2" />
-            </svg>
+          {/* Active Role Selector */}
+          <div className="flex items-center space-x-2 bg-slate-900/80 border border-white/10 px-2.5 py-1 rounded-lg">
+            <ShieldCheck className="w-3.5 h-3.5 text-teal-400" />
+            <select
+              value={currentRole}
+              onChange={(e) => setCurrentRole(e.target.value)}
+              className="bg-transparent text-xs text-slate-200 focus:outline-none cursor-pointer"
+            >
+              {roles.map((r) => (
+                <option key={r.id} value={r.id} className="bg-slate-900 text-white">
+                  {r.label}
+                </option>
+              ))}
+            </select>
           </div>
-
-          <button
-            onClick={() => setActiveTab('ai-doctor')}
-            className="w-full py-2.5 bg-[#0f172a] hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md transition"
-          >
-            Update Now
-          </button>
 
         </div>
-
       </div>
-
-    </aside>
+    </header>
   );
 }

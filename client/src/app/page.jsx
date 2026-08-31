@@ -1,6 +1,20 @@
 /**
  * ==============================================================================
- * SkinLab AI - Master Application Frame (DocuVerse & Youcare UI Master)
+ * SkinLab AI - Main Single Page Application (SPA) Controller
+ * ==============================================================================
+ * Unifies all 12 modules and the AI Suite:
+ * - Module 1: Authentication & Role-Based Access Control
+ * - Module 2 & 11: Real-time Analytics & Machine ROI Reports
+ * - Module 3: POS Treatment Billing Terminal & Dual-Format Receipting
+ * - Module 4: Sales History & Invoicing
+ * - Module 5 & 9: Services Master, Bundles & Barcode Labels
+ * - Module 6: Patient PRM & Session Redemption Lifecycle (receive_payment_dialog)
+ * - Module 7 & 8: SRM Purchases & Treatment Refund Auditor
+ * - Module 10: HRM & Practitioner Directory
+ * - Module 12: Clinic Settings & SQL Backups
+ * - Reception Calendar: Full interactive Appointments Calendar with Edit Schedule Modal
+ * - AI Suite: LangGraph Doctor Assistant, Voice Booking Simulator, WhatsApp Center
+ * - Offline Outbox Synchronization Pattern (PWA)
  * ==============================================================================
  */
 
@@ -8,10 +22,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
-import OverviewDashboard from '@/components/Overview/OverviewDashboard';
-import CalendarManager from '@/components/Calendar/CalendarManager';
 import POSTerminal from '@/components/POS/POSTerminal';
 import PatientDirectory from '@/components/PRM/PatientDirectory';
+import AppointmentCalendar from '@/components/Calendar/AppointmentCalendar';
 import DoctorAssistant from '@/components/AI/DoctorAssistant';
 import VoiceBookingAgent from '@/components/AI/VoiceBookingAgent';
 import WhatsAppHub from '@/components/AI/WhatsAppHub';
@@ -21,19 +34,24 @@ import StaffDirectory from '@/components/HRM/StaffDirectory';
 import SupplierPurchases from '@/components/Purchases/SupplierPurchases';
 import ClinicSettings from '@/components/Settings/ClinicSettings';
 import { api } from '@/lib/api';
+import { outboxManager } from '@/lib/outbox';
 
 export default function SkinLabApp() {
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'ai-doctor', 'prm', 'calendar', 'pos', 'voice-agent', 'whatsapp', 'reports', 'settings'
+  // Navigation & Role States
+  const [activeTab, setActiveTab] = useState('pos'); // 'pos', 'appointments', 'prm', 'ai-doctor', 'voice-agent', 'whatsapp', 'reports', 'catalog', 'hrm', 'purchases', 'settings'
+  const [currentRole, setCurrentRole] = useState('admin'); // 'admin', 'doctor', 'manager', 'cashier'
+  const [isOffline, setIsOffline] = useState(false);
+  const [outboxCount, setOutboxCount] = useState(0);
 
-  // Data Stores
+  // Clinic Core Data Stores
   const [patients, setPatients] = useState([]);
   const [products, setProducts] = useState([]);
   const [deals, setDeals] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [sales, setSales] = useState([]);
-  const [appointments, setAppointments] = useState([]);
+  const [injectedSessionRemarks, setInjectedSessionRemarks] = useState('');
 
-  // Load clinic data
+  // Initial Load from Python FastAPI Backend
   const refreshClinicData = async () => {
     try {
       const posData = await api.getPOSOverview();
@@ -52,121 +70,169 @@ export default function SkinLabApp() {
       if (salesData && salesData.invoices) {
         setSales(salesData.invoices);
       }
-
-      const apptData = await api.getCalendarSchedule();
-      if (apptData && apptData.appointments) {
-        setAppointments(apptData.appointments);
-      }
     } catch (e) {
-      console.warn("[App] Initial load:", e);
+      console.warn("[App] Initial load error or backend starting up:", e);
     }
   };
 
   useEffect(() => {
     refreshClinicData();
+    const count = outboxManager.getPendingQueue().length;
+    setOutboxCount(count);
   }, []);
 
+  // Handle Checkout Action
   const handleCheckout = async (salePayload) => {
-    const result = await api.createSale(salePayload);
-    await refreshClinicData();
-    return result;
+    if (isOffline) {
+      outboxManager.enqueueAction('create_sale', salePayload);
+      setOutboxCount(outboxManager.getPendingQueue().length);
+      alert('Application is in Offline Mode. Sale successfully queued in local Outbox and will auto-sync when online.');
+      return { success: true, sale: { ...salePayload, invoice_number: 'INV-OFFLINE-01', token_number: 'P-OFF' } };
+    }
+
+    try {
+      const result = await api.createSale(salePayload);
+      await refreshClinicData();
+      return result;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
   };
 
+  // Handle Session Redemption Action
   const handleRedeemSession = async (redeemPayload) => {
-    const result = await api.redeemSession(redeemPayload);
-    await refreshClinicData();
-    return result;
+    if (isOffline) {
+      outboxManager.enqueueAction('redeem_session', redeemPayload);
+      setOutboxCount(outboxManager.getPendingQueue().length);
+      alert('Redemption queued in Outbox.');
+      return { success: true };
+    }
+
+    try {
+      const result = await api.redeemSession(redeemPayload);
+      await refreshClinicData();
+      return result;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
   };
 
+  // Handle Patient Registration Action
   const handleRegisterPatient = async (patientPayload) => {
-    const result = await api.registerPatient(patientPayload);
+    if (isOffline) {
+      outboxManager.enqueueAction('register_patient', patientPayload);
+      setOutboxCount(outboxManager.getPendingQueue().length);
+      const tempPatient = { id: Date.now(), mrn: '0099-08-2026', ...patientPayload, visit_count: 0, current_balance: 0, advance_balance: 0 };
+      setPatients(prev => [tempPatient, ...prev]);
+      return { success: true, patient: tempPatient };
+    }
+
+    try {
+      const result = await api.registerPatient(patientPayload);
+      await refreshClinicData();
+      return result;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  };
+
+  // Sync Outbox Queue
+  const handleSyncOutbox = async () => {
+    const result = await outboxManager.flushQueue(api);
+    setOutboxCount(result.remainingCount);
     await refreshClinicData();
-    return result;
+    alert(`Outbox Synced: ${result.syncedCount} records sent to server.`);
+  };
+
+  // Inject AI Note into POS Remarks
+  const handleInjectAINoteToPOS = (noteText) => {
+    setInjectedSessionRemarks(noteText);
+    setActiveTab('pos');
   };
 
   return (
-    <div className="min-h-screen bg-[#eaf0ee] p-4 sm:p-8 flex items-center justify-center font-sans">
+    <div className="min-h-screen pb-12">
       
-      {/* DocuVerse Main Card Frame */}
-      <div className="docuverse-frame w-full max-w-[1440px] flex flex-col md:flex-row overflow-hidden border border-slate-200/80 shadow-2xl">
+      {/* Top Clinic Navigation & Role Bar */}
+      <Navigation
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        currentRole={currentRole}
+        setCurrentRole={setCurrentRole}
+        isOffline={isOffline}
+        setIsOffline={setIsOffline}
+        outboxCount={outboxCount}
+        onSyncOutbox={handleSyncOutbox}
+      />
+
+      {/* Main Module Content Switcher */}
+      <main className="max-w-7xl mx-auto px-4">
         
-        {/* Left Sidebar (DocuVerse Exact Menu & AI Card) */}
-        <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+        {activeTab === 'pos' && (
+          <POSTerminal
+            patients={patients}
+            products={products}
+            deals={deals}
+            doctors={doctors}
+            onCheckout={handleCheckout}
+            onRegisterPatient={handleRegisterPatient}
+            isOffline={isOffline}
+          />
+        )}
 
-        {/* Right Main Content View */}
-        <main className="flex-1 p-6 md:p-8 bg-[#fdfdfd] overflow-y-auto max-h-[92vh]">
-          
-          {/* TAB 1: Overview Dashboard (DocuVerse Image 1) */}
-          {activeTab === 'overview' && (
-            <OverviewDashboard
-              patients={patients}
-              doctors={doctors}
-              sales={sales}
-              onNavigate={setActiveTab}
-            />
-          )}
+        {activeTab === 'appointments' && (
+          <AppointmentCalendar />
+        )}
 
-          {/* TAB 2: Appointment Calendar (Youcare Image 2) */}
-          {activeTab === 'calendar' && (
-            <CalendarManager
-              appointments={appointments}
-              doctors={doctors}
-              patients={patients}
-            />
-          )}
+        {activeTab === 'prm' && (
+          <PatientDirectory
+            patients={patients}
+            onRedeemSession={handleRedeemSession}
+            onRegisterPatient={handleRegisterPatient}
+          />
+        )}
 
-          {/* TAB 3: POS Billing */}
-          {activeTab === 'pos' && (
-            <POSTerminal
-              patients={patients}
-              products={products}
-              deals={deals}
-              doctors={doctors}
-              onCheckout={handleCheckout}
-              onRegisterPatient={handleRegisterPatient}
-            />
-          )}
+        {activeTab === 'ai-doctor' && (
+          <DoctorAssistant
+            patients={patients}
+            onInjectNotes={handleInjectAINoteToPOS}
+          />
+        )}
 
-          {/* TAB 4: Patient PRM */}
-          {activeTab === 'prm' && (
-            <PatientDirectory
-              patients={patients}
-              onRedeemSession={handleRedeemSession}
-              onRegisterPatient={handleRegisterPatient}
-            />
-          )}
+        {activeTab === 'voice-agent' && (
+          <VoiceBookingAgent />
+        )}
 
-          {/* TAB 5: Doctor AI Assistant */}
-          {activeTab === 'ai-doctor' && (
-            <DoctorAssistant
-              patients={patients}
-              onInjectNotes={() => setActiveTab('pos')}
-            />
-          )}
+        {activeTab === 'whatsapp' && (
+          <WhatsAppHub
+            patients={patients}
+          />
+        )}
 
-          {/* TAB 6: Voice Booking Agent */}
-          {activeTab === 'voice-agent' && (
-            <VoiceBookingAgent />
-          )}
+        {activeTab === 'reports' && (
+          <AnalyticsDashboard />
+        )}
 
-          {/* TAB 7: WhatsApp Hub */}
-          {activeTab === 'whatsapp' && (
-            <WhatsAppHub patients={patients} />
-          )}
+        {activeTab === 'catalog' && (
+          <ServicesMaster />
+        )}
 
-          {/* TAB 8: Reports */}
-          {activeTab === 'reports' && (
-            <AnalyticsDashboard />
-          )}
+        {activeTab === 'hrm' && (
+          <StaffDirectory />
+        )}
 
-          {/* TAB 9: Settings */}
-          {activeTab === 'settings' && (
-            <ClinicSettings />
-          )}
+        {activeTab === 'purchases' && (
+          <SupplierPurchases sales={sales} />
+        )}
 
-        </main>
+        {activeTab === 'settings' && (
+          <ClinicSettings />
+        )}
 
-      </div>
+      </main>
 
     </div>
   );

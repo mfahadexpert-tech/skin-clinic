@@ -5,17 +5,18 @@ SkinLab AI - AI Voice Booking Agent & Doctor Calendar Sync Router
 Handles:
 1. 24/7 AI Voice phone call simulator (English & Roman Urdu speech transcription).
 2. Doctor availability & Google Calendar real-time slot checking.
-3. Automatic appointment creation directly in the clinic database.
+3. Automatic appointment creation & receptionist slot management.
+4. CRUD operations for calendar appointments (Create, Update, Reschedule, Delete).
 ==============================================================================
 """
 
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from database.supabase_client import clinic_store
 from database.models import AIVoiceBookingRequest
 
-router = APIRouter(prefix="/api/voice", tags=["AI Voice Agent"])
+router = APIRouter(prefix="/api/voice", tags=["AI Voice & Calendar"])
 
 
 @router.get("/appointments")
@@ -24,22 +25,94 @@ def get_calendar_schedule():
     return {
         "success": True,
         "appointments": clinic_store.appointments,
-        "doctors": clinic_store.employees
+        "doctors": clinic_store.employees,
+        "patients": clinic_store.customers
     }
+
+
+@router.post("/appointments/create")
+def create_appointment(payload: Dict[str, Any]):
+    """
+    Creates a new appointment manually from the interactive receptionist calendar.
+    """
+    customer_id = payload.get("customer_id")
+    customer = next((c for c in clinic_store.customers if c["id"] == customer_id), None)
+    customer_name = customer["name"] if customer else payload.get("customer_name", "Walk-In Patient")
+    customer_phone = customer["phone"] if customer else payload.get("customer_phone", "0300-0000000")
+
+    doctor_id = payload.get("doctor_id", 1)
+    doctor = next((e for e in clinic_store.employees if e["id"] == doctor_id), None)
+    doctor_name = doctor["name"] if doctor else payload.get("doctor_name", "Dr. Sarah Khan")
+
+    new_appt = {
+        "id": len(clinic_store.appointments) + 1,
+        "customer_id": customer_id or 1,
+        "customer_name": customer_name,
+        "customer_phone": customer_phone,
+        "doctor_id": doctor_id,
+        "doctor_name": doctor_name,
+        "treatment_name": payload.get("treatment_name", "Aesthetic Consultation"),
+        "appointment_time": payload.get("appointment_time", datetime.now().isoformat()),
+        "duration_minutes": payload.get("duration_minutes", 45),
+        "source": payload.get("source", "receptionist"),
+        "status": payload.get("status", "confirmed"),
+        "notes": payload.get("notes", "Scheduled via Reception Calendar.")
+    }
+    clinic_store.appointments.append(new_appt)
+
+    return {
+        "success": True,
+        "message": "Appointment created successfully",
+        "appointment": new_appt
+    }
+
+
+@router.put("/appointments/{appointment_id}")
+def update_appointment(appointment_id: int, payload: Dict[str, Any]):
+    """
+    Module Reception Calendar: Edits an existing appointment schedule & time slots.
+    """
+    appt = next((a for a in clinic_store.appointments if a["id"] == appointment_id), None)
+    if not appt:
+        raise HTTPException(status_code=404, detail="Appointment record not found.")
+
+    if "treatment_name" in payload:
+        appt["treatment_name"] = payload["treatment_name"]
+    if "appointment_time" in payload:
+        appt["appointment_time"] = payload["appointment_time"]
+    if "doctor_id" in payload:
+        appt["doctor_id"] = payload["doctor_id"]
+        doc = next((e for e in clinic_store.employees if e["id"] == payload["doctor_id"]), None)
+        if doc:
+            appt["doctor_name"] = doc["name"]
+    if "status" in payload:
+        appt["status"] = payload["status"]
+    if "notes" in payload:
+        appt["notes"] = payload["notes"]
+    if "customer_name" in payload:
+        appt["customer_name"] = payload["customer_name"]
+
+    return {
+        "success": True,
+        "message": "Appointment schedule updated successfully",
+        "appointment": appt
+    }
+
+
+@router.delete("/appointments/{appointment_id}")
+def delete_appointment(appointment_id: int):
+    """Cancels/removes an appointment from the schedule."""
+    clinic_store.appointments = [a for a in clinic_store.appointments if a["id"] != appointment_id]
+    return {"success": True, "message": "Appointment cancelled successfully"}
 
 
 @router.post("/simulate-call")
 def simulate_voice_booking(call_data: AIVoiceBookingRequest):
     """
     Simulates the AI Voice Agent receiving an incoming phone call from a patient.
-    - Transcribes natural speech (English or Roman Urdu).
-    - Detects treatment intent (e.g. 'HydraFacial', 'Laser hair removal').
-    - Allocates earliest available slot.
-    - Synchronizes appointment with doctor's schedule.
     """
     transcript = call_data.speech_transcript.lower()
 
-    # 1. Match Patient by Phone or Create Walk-In
     patient = next((c for c in clinic_store.customers if c["phone"] == call_data.caller_phone), None)
     if not patient:
         patient_name = call_data.caller_name or "Phone Caller"
@@ -57,7 +130,6 @@ def simulate_voice_booking(call_data: AIVoiceBookingRequest):
         }
         clinic_store.customers.append(patient)
 
-    # 2. Match Treatment Requested
     matched_treatment = "Aesthetic Consultation & Facial"
     if "laser" in transcript:
         matched_treatment = "Laser Hair Removal Session"
@@ -68,7 +140,6 @@ def simulate_voice_booking(call_data: AIVoiceBookingRequest):
     elif "carbon" in transcript:
         matched_treatment = "Carbon Laser Peel"
 
-    # 3. Schedule Appointment Slot (Tomorrow at 11:30 AM or preferred time)
     appt_time = (datetime.now() + timedelta(days=1)).replace(hour=11, minute=30, second=0).isoformat()
     new_appt = {
         "id": len(clinic_store.appointments) + 1,
@@ -86,7 +157,6 @@ def simulate_voice_booking(call_data: AIVoiceBookingRequest):
     }
     clinic_store.appointments.append(new_appt)
 
-    # 4. Generate Natural Voice Agent Audio Response
     if any(w in transcript for w in ["kya", "karwana", "hai", "kal", "time"]):
         voice_response = (
             f"Jee {patient['name']}, aap ki appointment kal subha 11:30 baje Dr. Sarah Khan ke sath "

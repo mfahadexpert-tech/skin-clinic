@@ -3,7 +3,7 @@
  * SkinLab AI - Frontend API & Streaming Client
  * ==============================================================================
  * Communicates with the FastAPI backend on port 8000.
- * Includes methods for POS, PRM, AI Streaming, Voice Agent, and Backups.
+ * Includes methods for POS, PRM, AI Streaming, Voice Agent, Calendar, and Backups.
  * ==============================================================================
  */
 
@@ -116,7 +116,7 @@ export const api = {
     }
   },
 
-  // 5. AI Voice Booking Agent Simulator
+  // 5. AI Voice Booking Agent Simulator & Reception Calendar
   async simulateVoiceCall(callData) {
     const res = await fetch(`${API_BASE}/voice/simulate-call`, {
       method: "POST",
@@ -128,6 +128,31 @@ export const api = {
 
   async getCalendarSchedule() {
     const res = await fetch(`${API_BASE}/voice/appointments`);
+    return await res.json();
+  },
+
+  async createAppointment(apptData) {
+    const res = await fetch(`${API_BASE}/voice/appointments/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(apptData),
+    });
+    return await res.json();
+  },
+
+  async updateAppointment(id, apptData) {
+    const res = await fetch(`${API_BASE}/voice/appointments/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(apptData),
+    });
+    return await res.json();
+  },
+
+  async deleteAppointment(id) {
+    const res = await fetch(`${API_BASE}/voice/appointments/${id}`, {
+      method: "DELETE"
+    });
     return await res.json();
   },
 
