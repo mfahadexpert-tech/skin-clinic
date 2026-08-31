@@ -1,142 +1,96 @@
 /* ==============================================================================
-   SkinLab AI - High-Contrast DocuVerse Design Tokens & Colors
-   Exact Match to High-Fidelity Reference:
-   - Crisp Charcoal Headings (#0f172a)
-   - Slate Secondary Labels (#64748b)
-   - Pure Snow White Cards (#ffffff) with subtle border (#edf2f2)
-   - Vibrant Medical Green Accents (#00D084, #059669)
-   - Frosted Mint Backdrop (Canvas)
+   SkinLab AI - Vibrant Light Theme with Dark Hover State & High-Contrast Colors
+   ==============================================================================
+   - Base State: Crisp Light Background (#f8fafc / #ffffff) with high-contrast text.
+   - Accents: Vivid Green (#059669), Sunset Orange (#ea580c), Golden Yellow (#d97706).
+   - Hover State: Smooth transition to Dark Slate (#0f172a / #1e293b) with white text.
    ============================================================================== */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
-
 :root {
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --bg-light-base: #f8fafc;
+  --bg-card-light: #ffffff;
+  --border-light: #e2e8f0;
+  --text-dark: #0f172a;
+  --text-muted: #64748b;
+  --accent-green: #059669;
+  --accent-orange: #ea580c;
+  --accent-yellow: #d97706;
 }
 
-body {
-  background: radial-gradient(circle at 20% 20%, #d8eae5 0%, #e5edea 45%, #d4e3de 100%);
-  color: #0f172a;
-  font-family: var(--font-sans);
+html, body {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   min-height: 100vh;
-  margin: 0;
-  padding: 0;
-  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
-/* Master Container Card */
-.docuverse-frame {
-  background: #ffffff;
-  border-radius: 2.25rem;
-  box-shadow: 0 30px 70px -15px rgba(15, 45, 38, 0.14), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+/* Light Base Panels with Dark Hover State */
+.glass-panel {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  border-radius: 0.85rem;
+  box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease-in-out;
 }
 
-/* Individual Content Cards */
-.docu-card {
-  background: #ffffff;
-  border: 1px solid #edf2f1;
-  border-radius: 1.25rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
-  transition: all 0.2s ease;
+.glass-card {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  border-radius: 0.65rem;
+  transition: all 0.2s ease-in-out;
 }
 
-.docu-card:hover {
-  box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.05);
-  border-color: #e2e8e7;
+.glass-card:hover {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
 }
 
-/* Mini Vertical Bars for KPI Status */
-.mini-bar {
-  width: 3px;
-  border-radius: 9999px;
-  display: inline-block;
-}
-
-.bar-green {
-  background-color: #10b981;
-}
-
-.bar-orange {
-  background-color: #f97316;
-}
-
-.bar-yellow {
-  background-color: #facc15;
-}
-
-.bar-gray {
-  background-color: #e2e8f0;
-}
-
-/* Striped Bar Chart for Demographic (Exact Match to Image 1) */
-.striped-bar-green {
-  background: repeating-linear-gradient(
-    45deg,
-    #10b981,
-    #10b981 5px,
-    #059669 5px,
-    #059669 10px
-  );
+.glass-input {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
   border-radius: 0.5rem;
-}
-
-.striped-bar-lime {
-  background: repeating-linear-gradient(
-    45deg,
-    #84cc16,
-    #84cc16 5px,
-    #65a30d 5px,
-    #65a30d 10px
-  );
-  border-radius: 0.5rem;
-}
-
-.striped-bar-yellow {
-  background: repeating-linear-gradient(
-    45deg,
-    #eab308,
-    #eab308 5px,
-    #ca8a04 5px,
-    #ca8a04 10px
-  );
-  border-radius: 0.5rem;
-}
-
-/* Search and Input Fields */
-.docu-search-input {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  color: #0f172a;
-  border-radius: 9999px;
-  padding: 0.625rem 1.25rem 0.625rem 2.75rem;
-  font-size: 0.8125rem;
-  font-weight: 500;
+  padding: 0.5rem 0.75rem;
   outline: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-  transition: all 0.15s ease;
+  font-size: 0.8125rem;
+  transition: all 0.15s ease-in-out;
 }
 
-.docu-search-input:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+.glass-input:focus {
+  border-color: #059669 !important;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2) !important;
+}
+
+/* High-Contrast Table Styling */
+table {
+  color: #0f172a !important;
+}
+
+th {
+  color: #334155 !important;
+  font-weight: 700 !important;
+  background-color: #f1f5f9 !important;
+}
+
+td {
+  color: #0f172a !important;
 }
 
 /* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 9999px;
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Print Rules */

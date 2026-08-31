@@ -3,9 +3,9 @@
 SkinLab AI - Services Catalog, Deals Master & Barcode Router
 ==============================================================================
 Handles:
-1. Skincare treatments & clinical procedures master.
-2. Bundled deals & package configurations (e.g. Bridal Glow, 6S Laser).
-3. Retail skincare inventory stock levels & alerts.
+1. Skincare treatments & clinical procedures master (Create & List).
+2. Registering new services (Full Body Laser, Skin Whitening, PRP, Botox, Peels).
+3. Bundled deals & package configurations.
 4. Barcode thermal label generation (Code-128 / EAN-13).
 ==============================================================================
 """
@@ -28,11 +28,47 @@ def list_services():
     }
 
 
+@router.post("/services/create")
+def create_service(payload: Dict[str, Any]):
+    """
+    Creates a new clinical service or procedure (e.g. Skin Whitening, Full Body Laser).
+    """
+    name = payload.get("name", "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Service name is required.")
+
+    selling_price = float(payload.get("selling_price", 5000.0))
+    is_service = payload.get("is_service", True)
+    sku = payload.get("sku", f"SRV-{len(clinic_store.products) + 1:03d}")
+
+    new_prod = {
+        "id": len(clinic_store.products) + 1,
+        "name": name,
+        "sku": sku,
+        "barcode": f"89012345000{len(clinic_store.products) + 1}",
+        "category_id": payload.get("category_id", 1),
+        "cost_price": float(payload.get("cost_price", selling_price * 0.4)),
+        "selling_price": selling_price,
+        "tax_rate": 0.0,
+        "is_service": is_service,
+        "sessions_default": int(payload.get("sessions_default", 1)),
+        "stock_qty": 999 if is_service else int(payload.get("stock_qty", 50)),
+        "is_active": True
+    }
+    clinic_store.products.append(new_prod)
+
+    return {
+        "success": True,
+        "message": "Service created successfully",
+        "product": new_prod,
+        "products": clinic_store.products
+    }
+
+
 @router.post("/deals/create")
 def create_bundled_deal(deal_data: Dict[str, Any]):
     """
-    Creates a new bundled package with multi-session allowances
-    (e.g., 'HydraFacial 4-Session Glow Deal').
+    Creates a new bundled package with multi-session allowances.
     """
     new_deal = {
         "id": len(clinic_store.deals) + 1,
@@ -50,8 +86,7 @@ def create_bundled_deal(deal_data: Dict[str, Any]):
 @router.get("/barcode/{product_id}")
 def generate_barcode_label(product_id: int):
     """
-    Module 9: Returns thermal label configuration for a product or service.
-    Outputs: Product Name, Service Code / SKU, Price (PKR), Clinic Branding, Barcode text.
+    Returns thermal label configuration for a product or service.
     """
     prod = next((p for p in clinic_store.products if p["id"] == product_id), None)
     if not prod:

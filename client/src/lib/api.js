@@ -3,7 +3,7 @@
  * SkinLab AI - Frontend API & Streaming Client
  * ==============================================================================
  * Communicates with the FastAPI backend on port 8000.
- * Includes methods for POS, PRM, AI Streaming, Voice Agent, Calendar, and Backups.
+ * Includes methods for POS, PRM, AI Streaming, Voice Agent, Calendar, Catalog & HRM.
  * ==============================================================================
  */
 
@@ -99,7 +99,7 @@ export const api = {
         buffer += decoder.decode(value, { stream: true });
         
         const lines = buffer.split("\n\n");
-        buffer = lines.pop(); // Keep last incomplete chunk
+        buffer = lines.pop();
 
         for (const line of lines) {
           if (line.startsWith("data: ")) {
@@ -187,9 +187,18 @@ export const api = {
     return await res.json();
   },
 
-  // 8. Catalog, Barcodes & SRM
+  // 8. Catalog, Barcodes & Services
   async getServicesCatalog() {
     const res = await fetch(`${API_BASE}/catalog/services`);
+    return await res.json();
+  },
+
+  async createService(serviceData) {
+    const res = await fetch(`${API_BASE}/catalog/services/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(serviceData),
+    });
     return await res.json();
   },
 
@@ -212,9 +221,18 @@ export const api = {
     return await res.json();
   },
 
-  // 9. HRM Staff & Payroll
+  // 9. HRM Staff & Doctor Registration
   async getStaff() {
     const res = await fetch(`${API_BASE}/hrm/staff`);
+    return await res.json();
+  },
+
+  async createDoctor(doctorData) {
+    const res = await fetch(`${API_BASE}/hrm/staff/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(doctorData),
+    });
     return await res.json();
   },
 

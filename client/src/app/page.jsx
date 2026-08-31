@@ -10,7 +10,7 @@
  * - Module 5 & 9: Services Master, Bundles & Barcode Labels
  * - Module 6: Patient PRM & Session Redemption Lifecycle (receive_payment_dialog)
  * - Module 7 & 8: SRM Purchases & Treatment Refund Auditor
- * - Module 10: HRM & Practitioner Directory
+ * - Module 10: HRM & Practitioner Directory with + Add Doctor Modal
  * - Module 12: Clinic Settings & SQL Backups
  * - Reception Calendar: Full interactive Appointments Calendar with Edit Schedule Modal
  * - AI Suite: LangGraph Doctor Assistant, Voice Booking Simulator, WhatsApp Center
@@ -38,8 +38,8 @@ import { outboxManager } from '@/lib/outbox';
 
 export default function SkinLabApp() {
   // Navigation & Role States
-  const [activeTab, setActiveTab] = useState('pos'); // 'pos', 'appointments', 'prm', 'ai-doctor', 'voice-agent', 'whatsapp', 'reports', 'catalog', 'hrm', 'purchases', 'settings'
-  const [currentRole, setCurrentRole] = useState('admin'); // 'admin', 'doctor', 'manager', 'cashier'
+  const [activeTab, setActiveTab] = useState('pos');
+  const [currentRole, setCurrentRole] = useState('admin');
   const [isOffline, setIsOffline] = useState(false);
   const [outboxCount, setOutboxCount] = useState(0);
 
@@ -139,6 +139,18 @@ export default function SkinLabApp() {
     }
   };
 
+  // Handle Doctor Registration Action
+  const handleRegisterDoctor = async (doctorPayload) => {
+    try {
+      const result = await api.createDoctor(doctorPayload);
+      await refreshClinicData();
+      return result;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  };
+
   // Sync Outbox Queue
   const handleSyncOutbox = async () => {
     const result = await outboxManager.flushQueue(api);
@@ -179,6 +191,7 @@ export default function SkinLabApp() {
             doctors={doctors}
             onCheckout={handleCheckout}
             onRegisterPatient={handleRegisterPatient}
+            onRegisterDoctor={handleRegisterDoctor}
             isOffline={isOffline}
           />
         )}
