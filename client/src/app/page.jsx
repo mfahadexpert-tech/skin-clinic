@@ -8,9 +8,9 @@
  * - Module 3: POS Treatment Billing Terminal & Dual-Format Receipting
  * - Module 4: Sales History & Invoicing
  * - Module 5 & 9: Services Master, Bundles & Barcode Labels
- * - Module 6: Patient PRM & Session Redemption Lifecycle (receive_payment_dialog)
+ * - Module 6: Patient PRM & Session Redemption Lifecycle (Full CRUD)
  * - Module 7 & 8: SRM Purchases & Treatment Refund Auditor
- * - Module 10: HRM & Practitioner Directory with + Add Doctor Modal
+ * - Module 10: HRM & Practitioner Directory (Full Doctor CRUD - Add, Edit, Delete)
  * - Module 12: Clinic Settings & SQL Backups
  * - Reception Calendar: Full interactive Appointments Calendar with Edit Schedule Modal
  * - AI Suite: LangGraph Doctor Assistant, Voice Booking Simulator, WhatsApp Center
@@ -37,13 +37,11 @@ import { api } from '@/lib/api';
 import { outboxManager } from '@/lib/outbox';
 
 export default function SkinLabApp() {
-  // Navigation & Role States
   const [activeTab, setActiveTab] = useState('pos');
   const [currentRole, setCurrentRole] = useState('admin');
   const [isOffline, setIsOffline] = useState(false);
   const [outboxCount, setOutboxCount] = useState(0);
 
-  // Clinic Core Data Stores
   const [patients, setPatients] = useState([]);
   const [products, setProducts] = useState([]);
   const [deals, setDeals] = useState([]);
@@ -51,7 +49,6 @@ export default function SkinLabApp() {
   const [sales, setSales] = useState([]);
   const [injectedSessionRemarks, setInjectedSessionRemarks] = useState('');
 
-  // Initial Load from Python FastAPI Backend
   const refreshClinicData = async () => {
     try {
       const posData = await api.getPOSOverview();
@@ -81,12 +78,11 @@ export default function SkinLabApp() {
     setOutboxCount(count);
   }, []);
 
-  // Handle Checkout Action
   const handleCheckout = async (salePayload) => {
     if (isOffline) {
       outboxManager.enqueueAction('create_sale', salePayload);
       setOutboxCount(outboxManager.getPendingQueue().length);
-      alert('Application is in Offline Mode. Sale successfully queued in local Outbox and will auto-sync when online.');
+      alert('Application is in Offline Mode. Sale queued in local Outbox.');
       return { success: true, sale: { ...salePayload, invoice_number: 'INV-OFFLINE-01', token_number: 'P-OFF' } };
     }
 
@@ -100,7 +96,6 @@ export default function SkinLabApp() {
     }
   };
 
-  // Handle Session Redemption Action
   const handleRedeemSession = async (redeemPayload) => {
     if (isOffline) {
       outboxManager.enqueueAction('redeem_session', redeemPayload);
@@ -119,12 +114,11 @@ export default function SkinLabApp() {
     }
   };
 
-  // Handle Patient Registration Action
   const handleRegisterPatient = async (patientPayload) => {
     if (isOffline) {
       outboxManager.enqueueAction('register_patient', patientPayload);
       setOutboxCount(outboxManager.getPendingQueue().length);
-      const tempPatient = { id: Date.now(), mrn: '0099-08-2026', ...patientPayload, visit_count: 0, current_balance: 0, advance_balance: 0 };
+      const tempPatient = { id: Date.now(), mrn: '0099-08-2026', ...patientPayload, visit_count: 0, current_balance: 0, advance_balance: 2000 };
       setPatients(prev => [tempPatient, ...prev]);
       return { success: true, patient: tempPatient };
     }
@@ -139,7 +133,15 @@ export default function SkinLabApp() {
     }
   };
 
-  // Handle Doctor Registration Action
+  const handleDeletePatient = async (patientId) => {
+    try {
+      await api.deletePatient(patientId);
+      await refreshClinicData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleRegisterDoctor = async (doctorPayload) => {
     try {
       const result = await api.createDoctor(doctorPayload);
@@ -151,7 +153,15 @@ export default function SkinLabApp() {
     }
   };
 
-  // Sync Outbox Queue
+  const handleDeleteDoctor = async (doctorId) => {
+    try {
+      await api.deleteDoctor(doctorId);
+      await refreshClinicData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleSyncOutbox = async () => {
     const result = await outboxManager.flushQueue(api);
     setOutboxCount(result.remainingCount);
@@ -159,7 +169,6 @@ export default function SkinLabApp() {
     alert(`Outbox Synced: ${result.syncedCount} records sent to server.`);
   };
 
-  // Inject AI Note into POS Remarks
   const handleInjectAINoteToPOS = (noteText) => {
     setInjectedSessionRemarks(noteText);
     setActiveTab('pos');
@@ -168,7 +177,7 @@ export default function SkinLabApp() {
   return (
     <div className="min-h-screen pb-12">
       
-      {/* Top Clinic Navigation & Role Bar */}
+      {/* Top Navigation */}
       <Navigation
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -180,7 +189,7 @@ export default function SkinLabApp() {
         onSyncOutbox={handleSyncOutbox}
       />
 
-      {/* Main Module Content Switcher */}
+      {/* Main Content Switcher */}
       <main className="max-w-7xl mx-auto px-4">
         
         {activeTab === 'pos' && (
@@ -205,6 +214,7 @@ export default function SkinLabApp() {
             patients={patients}
             onRedeemSession={handleRedeemSession}
             onRegisterPatient={handleRegisterPatient}
+            onDeletePatient={handleDeletePatient}
           />
         )}
 

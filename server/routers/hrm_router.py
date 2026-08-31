@@ -5,7 +5,8 @@ SkinLab AI - HRM & Clinic Staff / Practitioner Management Router
 Handles:
 1. Practitioner profiles (Doctors, Dermatologists, Laser Techs, Receptionists).
 2. Registering new doctors & specialists with custom shift hours & commission rates.
-3. Performance incentives / commission calculation on executed procedures.
+3. Updating doctor profiles & Deleting doctors if any doctor leaves or resigns.
+4. Performance incentives / commission calculation on executed procedures.
 ==============================================================================
 """
 
@@ -72,5 +73,50 @@ def create_staff_doctor(payload: Dict[str, Any]):
         "success": True,
         "message": "Doctor registered successfully",
         "doctor": new_doc,
+        "doctors": clinic_store.employees
+    }
+
+
+@router.put("/staff/{staff_id}")
+def update_staff_doctor(staff_id: int, payload: Dict[str, Any]):
+    """
+    Updates an existing doctor/staff record.
+    """
+    emp = next((e for e in clinic_store.employees if e["id"] == staff_id), None)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Doctor/Staff record not found.")
+
+    if "name" in payload:
+        emp["name"] = payload["name"]
+    if "designation" in payload:
+        emp["designation"] = payload["designation"]
+    if "specialization" in payload:
+        emp["specialization"] = payload["specialization"]
+    if "phone" in payload:
+        emp["phone"] = payload["phone"]
+    if "shift_start" in payload:
+        emp["shift_start"] = payload["shift_start"]
+    if "shift_end" in payload:
+        emp["shift_end"] = payload["shift_end"]
+    if "commission_rate" in payload:
+        emp["commission_rate"] = float(payload["commission_rate"])
+
+    return {
+        "success": True,
+        "message": "Doctor updated successfully",
+        "doctor": emp,
+        "doctors": clinic_store.employees
+    }
+
+
+@router.delete("/staff/{staff_id}")
+def delete_staff_doctor(staff_id: int):
+    """
+    Deletes/Removes a doctor or staff member from the clinic database (e.g. if doctor leaves).
+    """
+    clinic_store.employees = [e for e in clinic_store.employees if e["id"] != staff_id]
+    return {
+        "success": True,
+        "message": "Doctor/Staff record deleted successfully",
         "doctors": clinic_store.employees
     }

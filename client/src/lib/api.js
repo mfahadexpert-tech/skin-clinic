@@ -50,7 +50,7 @@ export const api = {
     return await res.json();
   },
 
-  // 3. Patient PRM & Multi-Session Tracking
+  // 3. Patient PRM & Multi-Session Tracking (CRUD)
   async listPatients(search = "") {
     const url = search ? `${API_BASE}/patients/?search=${encodeURIComponent(search)}` : `${API_BASE}/patients/`;
     const res = await fetch(url);
@@ -67,6 +67,22 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patientData),
+    });
+    return await res.json();
+  },
+
+  async updatePatient(id, patientData) {
+    const res = await fetch(`${API_BASE}/patients/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patientData),
+    });
+    return await res.json();
+  },
+
+  async deletePatient(id) {
+    const res = await fetch(`${API_BASE}/patients/${id}`, {
+      method: "DELETE"
     });
     return await res.json();
   },
@@ -221,7 +237,7 @@ export const api = {
     return await res.json();
   },
 
-  // 9. HRM Staff & Doctor Registration
+  // 9. HRM Staff & Doctor Registration (CRUD)
   async getStaff() {
     const res = await fetch(`${API_BASE}/hrm/staff`);
     return await res.json();
@@ -232,6 +248,22 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(doctorData),
+    });
+    return await res.json();
+  },
+
+  async updateDoctor(id, doctorData) {
+    const res = await fetch(`${API_BASE}/hrm/staff/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(doctorData),
+    });
+    return await res.json();
+  },
+
+  async deleteDoctor(id) {
+    const res = await fetch(`${API_BASE}/hrm/staff/${id}`, {
+      method: "DELETE"
     });
     return await res.json();
   },

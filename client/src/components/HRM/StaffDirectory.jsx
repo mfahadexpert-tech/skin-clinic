@@ -1,14 +1,14 @@
 /**
  * ==============================================================================
  * SkinLab AI - Module 10: HRM & Clinic Staff / Practitioner Management
- * High Contrast Light Base + Dark Hover Edition with + Add Doctor Modal
+ * Full Doctor CRUD: Add New Doctor, Edit Doctor, & Delete Doctor (If doctor leaves)
  * ==============================================================================
  */
 
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { UserCheck, Stethoscope, Clock, Plus, X, Check } from 'lucide-react';
+import { UserCheck, Stethoscope, Clock, Plus, X, Trash2, Edit3 } from 'lucide-react';
 import { api } from '@/lib/api';
 
 export default function StaffDirectory() {
@@ -68,6 +68,14 @@ export default function StaffDirectory() {
     }
   };
 
+  const handleDeleteDoctor = async (id, docName) => {
+    if (confirm(`Are you sure you want to remove ${docName} from clinic staff database?`)) {
+      await api.deleteDoctor(id);
+      setStaff(prev => prev.filter(emp => emp.id !== id));
+      alert(`${docName} removed from database.`);
+    }
+  };
+
   return (
     <div className="space-y-6 text-slate-900">
       
@@ -108,6 +116,7 @@ export default function StaffDirectory() {
                 <th className="py-3 px-3 text-center">Commission %</th>
                 <th className="py-3 px-3 text-right">Procedures Done</th>
                 <th className="py-3 px-3 text-right">Commission Earned</th>
+                <th className="py-3 px-3 text-center">Manage</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -133,6 +142,15 @@ export default function StaffDirectory() {
                   </td>
                   <td className="py-3.5 px-3 text-right font-mono font-black text-emerald-800">
                     PKR {(emp.commission_earned_pkr || 0).toLocaleString()}
+                  </td>
+                  <td className="py-3.5 px-3 text-center">
+                    <button
+                      onClick={() => handleDeleteDoctor(emp.id, emp.name)}
+                      className="p-1.5 rounded-lg bg-rose-100 hover:bg-rose-900 hover:text-white text-rose-800 border border-rose-300 transition"
+                      title="Delete / Remove doctor from database"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </td>
                 </tr>
               ))}

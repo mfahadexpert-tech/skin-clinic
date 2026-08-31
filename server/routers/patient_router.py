@@ -4,10 +4,10 @@ SkinLab AI - Patient Relationship Management (PRM) & Session Tracker Router
 ==============================================================================
 Handles:
 1. Patient directory search (by MRN, Name, Phone).
-2. Walk-in patient quick creation with MRN generator (0001-MM-YYYY).
-3. `receive_payment_dialog` (Module 6 & Workflow 3):
-   - Viewing active packages & session consumption (used vs remaining).
-   - Consuming next session (incrementing 'Session Now' counter).
+2. Walk-in patient quick creation & full profile registration.
+3. Patient Deletion & Profile Updates.
+4. `receive_payment_dialog`:
+   - Viewing active packages & session consumption.
    - Settling outstanding patient dues with direct account crediting.
 ==============================================================================
 """
@@ -40,16 +40,12 @@ def list_patients(search: Optional[str] = Query(None, description="Search by Nam
 @router.get("/{patient_id}")
 def get_patient_details(patient_id: int):
     """
-    Returns full patient profile including:
-    - Demographic info, skin classification, allergies
-    - Advance Wallet deposit balance & Current balance (dues)
-    - Complete sales history & multi-session active packages
+    Returns full patient profile.
     """
     patient = next((p for p in clinic_store.customers if p["id"] == patient_id), None)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient record not found.")
 
-    # Fetch patient's sales & packages
     patient_sales = [s for s in clinic_store.sales if s["customer_id"] == patient_id]
 
     return {
@@ -73,7 +69,7 @@ def register_patient(payload: CustomerCreate):
         "phone": payload.phone,
         "email": payload.email,
         "address": payload.address,
-        "skin_type": payload.skin_type or "Fitzpatrick Type III",
+        "skin_type": payload.skin_type or "Medium Asian Skin",
         "allergies": payload.allergies or "None reported",
         "medical_notes": payload.medical_notes or "Walk-in patient registration.",
         "visit_count": 0,
@@ -86,7 +82,47 @@ def register_patient(payload: CustomerCreate):
     return {
         "success": True,
         "message": f"Patient registered successfully with MRN: {new_mrn}",
-        "patient": new_patient
+        "patient": new_patient,
+        "patients": clinic_store.customers
+    }
+
+
+@router.put("/{patient_id}")
+def update_patient(patient_id: int, payload: Dict[str, Any]):
+    """
+    Updates an existing patient record.
+    """
+    patient = next((p for p in clinic_store.customers if p["id"] == patient_id), None)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient record not found.")
+
+    if "name" in payload:
+        patient["name"] = payload["name"]
+    if "phone" in payload:
+        patient["phone"] = payload["phone"]
+    if "skin_type" in payload:
+        patient["skin_type"] = payload["skin_type"]
+    if "allergies" in payload:
+        patient["allergies"] = payload["allergies"]
+
+    return {
+        "success": True,
+        "message": "Patient updated successfully",
+        "patient": patient,
+        "patients": clinic_store.customers
+    }
+
+
+@router.delete("/{patient_id}")
+def delete_patient(patient_id: int):
+    """
+    Deletes a patient record from the database.
+    """
+    clinic_store.customers = [p for p in clinic_store.customers if p["id"] != patient_id]
+    return {
+        "success": True,
+        "message": "Patient record deleted successfully",
+        "patients": clinic_store.customers
     }
 
 
@@ -94,23 +130,15 @@ def register_patient(payload: CustomerCreate):
 def redeem_session(payload: SessionRedeemRequest):
     """
     Module 6 / Workflow 3: Interactive Patient Visits & Session Redemption Dialog.
-    - Finds active sale invoice.
-    - Increments `sessions_consumed` on target procedure line item.
-    - Collects any outstanding due payments and decrements `current_balance`.
-    - Captures updated clinical remarks.
     """
-    # 1. Locate sale record
     sale = next((s for s in clinic_store.sales if s["id"] == payload.sale_id), None)
     if not sale:
         raise HTTPException(status_code=404, detail="Sale invoice record not found.")
 
-    # 2. Locate line item in sale
     item = next((i for i in sale["items"] if i["id"] == payload.item_id), None)
     if not item:
-        # Fallback to first item if item_id match is loose
         item = sale["items"][0]
 
-    # 3. Check session limits
     remaining = item["sessions_allowed"] - item["sessions_consumed"]
     if remaining < payload.sessions_to_consume:
         raise HTTPException(
@@ -118,24 +146,20 @@ def redeem_session(payload: SessionRedeemRequest):
             detail=f"Cannot consume {payload.sessions_to_consume} sessions. Only {remaining} sessions remaining."
         )
 
-    # Increment consumed sessions
     item["sessions_consumed"] += payload.sessions_to_consume
     remaining_after = item["sessions_allowed"] - item["sessions_consumed"]
 
-    # 4. Handle Due Payment Collection
     customer = next((c for c in clinic_store.customers if c["id"] == sale["customer_id"]), None)
     if payload.payment_amount > 0:
         sale["paid_amount"] += payload.payment_amount
         if customer:
             customer["current_balance"] = max(0.0, customer["current_balance"] - payload.payment_amount)
 
-        # Update sale payment status
         if sale["paid_amount"] >= sale["grand_total"]:
             sale["payment_status"] = "paid"
         else:
             sale["payment_status"] = "partial"
 
-    # Append session notes to remarks
     if payload.session_notes:
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
         sale["clinical_remarks"] = f"{sale.get('clinical_remarks', '')}\n[{now_str}] Session Redeemed: {payload.session_notes}"
