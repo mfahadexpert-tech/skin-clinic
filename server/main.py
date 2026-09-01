@@ -5,9 +5,9 @@ SkinLab AI - Main FastAPI Application Server Entrypoint
 An asynchronous high-performance Python backend unifying:
 1. Supabase PostgreSQL persistence & Realtime sync.
 2. Clinical RAG + LangGraph GPT Doctor Assistant with SSE streaming.
-3. POS Billing Terminal, Token generation, and Multi-Session Tracker.
-4. AI Voice Booking Agent & Multi-Channel WhatsApp Communications.
-5. Controlled AI Post-Treatment Follow-Up Assistant with Risk Escalation.
+3. Multimodal Vision AI Image Selection & Clinical Extraction.
+4. POS Billing Terminal, Token generation, and Multi-Session Tracker.
+5. Production Security Hardening Engine (Rate Limiting, OWASP Headers, MFA, RBAC).
 ==============================================================================
 """
 
@@ -41,8 +41,22 @@ from routers.adverse_events_router import router as adverse_events_router
 from routers.safety_router import router as safety_router
 from routers.scribe_router import router as scribe_router
 from routers.followup_router import router as followup_router
+from routers.inventory_batch_router import router as inventory_batch_router
+from routers.recipes_router import router as recipes_router
+from routers.inbox_router import router as inbox_router
+from routers.automation_router import router as automation_router
+from routers.tasks_router import router as tasks_router
+from routers.leads_router import router as leads_router
+from routers.treatment_plans_router import router as treatment_plans_router
+from routers.memberships_router import router as memberships_router
+from routers.branches_router import router as branches_router
+from routers.payroll_router import router as payroll_router
+from routers.device_router import router as device_router
+from routers.auth_security_router import router as auth_security_router
+from routers.vision_router import router as vision_router
 
-# Import LangGraph AI Assistant & Database Store
+# Import Security & LangGraph AI Assistant & Database Store
+from security.security_hardening import apply_rate_limit, inject_security_headers
 from ai.langgraph_agent import langgraph_agent, ClinicalState
 from database.supabase_client import clinic_store
 from database.models import AIChatRequest
@@ -62,6 +76,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def security_hardening_middleware(request: Request, call_next):
+    """
+    Middleware applying Rate Limiting & OWASP Production Secure HTTP Headers.
+    """
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    try:
+        apply_rate_limit(client_ip)
+    except Exception as e:
+        return JSONResponse(status_code=429, content={"detail": str(e)})
+
+    response = await call_next(request)
+    response = inject_security_headers(response)
+    return response
+
 
 # Register Module Routers
 app.include_router(pos_router)
@@ -84,6 +115,19 @@ app.include_router(adverse_events_router)
 app.include_router(safety_router)
 app.include_router(scribe_router)
 app.include_router(followup_router)
+app.include_router(inventory_batch_router)
+app.include_router(recipes_router)
+app.include_router(inbox_router)
+app.include_router(automation_router)
+app.include_router(tasks_router)
+app.include_router(leads_router)
+app.include_router(treatment_plans_router)
+app.include_router(memberships_router)
+app.include_router(branches_router)
+app.include_router(payroll_router)
+app.include_router(device_router)
+app.include_router(auth_security_router)
+app.include_router(vision_router)
 
 
 @app.get("/api/health", tags=["Health & Status"])
