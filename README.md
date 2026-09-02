@@ -1,131 +1,129 @@
-# SkinLab AI — Premium Aesthetic & Dermatology Clinic Operating System
+# Hospital Management & AI Agent System
 
-An enterprise-grade, modern, and user-friendly full-stack clinic management system and Point-of-Sale (POS) specifically custom-molded for **Aesthetic Clinics, Dermatology Centers, Laser Care Facilities, and Medical Spas**.
+A production-quality, enterprise-grade Clinic & Hospital Operating System with an Integrated Governed AI Assistant, Non-Reusable Concurrency-Safe Tokens, Authoritative Receptionist Approval Workflow, Queue State Machine, Append-Only Clinical Record Auditing, and Immutable Prescription Versioning.
 
 ---
 
-## 📁 Project Architecture & Folder Separation
+## 🎨 Mandatory Brand Palette Tokens
 
-The project is structured into two clean directories:
+- `--color-50:  #E0FBFC` (Very light cyan - page backgrounds, subtle highlights, selected states, AI surfaces)
+- `--color-100: #C2DFE3` (Soft blue-gray - secondary surfaces, cards, subtle sections, hover states)
+- `--color-300: #9DB4C0` (Muted blue-gray - borders, dividers, secondary icons, inactive elements, badges)
+- `--color-600: #5C6B73` (Dark slate gray - secondary text, secondary buttons, controls, labels)
+- `--color-900: #253237` (Deep charcoal - primary headings, primary text, navigation, primary buttons)
+
+---
+
+## 🚀 Core Architectural Features
+
+### 1. Token Invariant & Queue Lifecycle Engine
+- **Non-Reusable Cancelled Tokens**: Cancelled tokens (e.g. Token 2) are permanently retired and can **never** be reallocated on that day.
+- **Effective Patient Workload Cap**: Cancelled tokens do not consume active doctor capacity. For a daily limit of 100, if Token 2 is cancelled, the system safely generates **Token 101** for the 100th active patient.
+- **Intelligent "Call Next Patient" Algorithm**: Doctor's dashboard selects the lowest token number strictly in `waiting` (checked-in) state, automatically skipping booked patients who have not checked in (`not_checked_in`).
+
+### 2. Authoritative Receptionist Approval Workflow
+- Booking requests initiated through the **Patient Portal** or the **AI Agent** are strictly created in `PENDING` status.
+- Only the authorized front-desk Receptionist workflow can review and transition bookings to `CONFIRMED` or `DECLINED`.
+
+### 3. Clinical Record Integrity & Append-Only Audit Logging
+- Attending doctors can edit completed clinical records.
+- Every field modification (`diagnosis`, `examination_findings`, `treatment_plan`, etc.) appends an immutable record to `clinical_record_audits` capturing the actor ID, timestamp, old value, new value, and clinical justification.
+
+### 4. Immutable Prescription Versioning
+- Prescriptions are strictly versioned (`v1`, `v2`, `v3`...) and **never overwritten**.
+- Prior versions remain intact for historical audits while the latest version is flagged as `is_current = True` and presented to the patient.
+
+### 5. Multi-Tiered Clinical Privacy & RBAC
+- **Receptionist Privacy**: Receptionists have full access to operational records (appointments, doctor, service, visit dates, payment status, follow-up dates), but **diagnosis, examination findings, clinical notes, and prescriptions are strictly redacted** at the backend API level (returning 403 Forbidden).
+- **Patient Privacy**: Patients can view their full clinical records and current prescriptions, but **Doctor Private Notes** are strictly stripped.
+- **Doctor Permissions**: Doctors can access clinical history only for patients they have previously treated or are currently assigned to.
+
+### 6. Governed AI Agent Layer (RAG + Safety Guardrails)
+- **RAG Knowledge Retrieval**: Grounds answers to hospital FAQs, doctor credentials, services, and cancellation policies.
+- **Medical Safety Guardrail**: AI explicitly refuses to diagnose medical conditions or invent clinical treatments, advising patients to book a doctor consultation.
+- **Controlled Authorized Backend Tools**: AI operates through authenticated backend tools with explicit human confirmation prompts for booking and cancellation.
+
+---
+
+## 📁 System Architecture & Directory Structure
 
 ```
 skinlab-ai-clinic/
-├── client/                               # Frontend: React / Next.js / Node
+├── client/                               # Frontend: React 18 / Next.js 14
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── layout.jsx                # High-DPI typography & Root layout
-│   │   │   ├── page.jsx                  # Main SPA Dashboard & Module Router
-│   │   │   └── globals.css               # Glassmorphism design system & print styles
+│   │   │   ├── layout.jsx                # Clinical Typography & Root Metadata
+│   │   │   ├── page.jsx                  # Master App Render
+│   │   │   └── globals.css               # Mandatory Palette & Clinical Design Tokens
 │   │   ├── components/
-│   │   │   ├── Navigation.jsx            # Multi-tab header, Role switcher & Offline badge
-│   │   │   ├── POS/                      # Module 3: POS Billing & Invoicing Terminal
-│   │   │   │   ├── POSTerminal.jsx       # Patient search, Doctor assign, Remarks, Cart
-│   │   │   │   ├── TreatmentCart.jsx     # Used Now vs Sessions Allowed counters
-│   │   │   │   ├── CustomPackageModal.jsx# On-the-fly bundle builder
-│   │   │   │   ├── SplitCheckoutModal.jsx# Multi-method split checkout
-│   │   │   │   ├── ThermalReceipt.jsx    # 80mm ESC/POS thermal receipt slip
-│   │   │   │   └── MedicalInvoiceA4.jsx  # Professional A4 medical invoice
-│   │   │   ├── PRM/                      # Module 6: Patient PRM & Session Redemption
-│   │   │   │   ├── PatientDirectory.jsx  # MRN (0001-08-2026), Wallets, Dues
-│   │   │   │   ├── SessionRedeemModal.jsx# "receive_payment_dialog" session consumption
-│   │   │   │   └── BeforeAfterGallery.jsx# Clinical Before/After photo comparison slider
-│   │   │   ├── AI/                       # Clinical AI Suite
-│   │   │   │   ├── DoctorAssistant.jsx   # LangGraph SSE streaming chatbot & disclaimer
-│   │   │   │   ├── VoiceBookingAgent.jsx # 24/7 AI Voice Booking simulator & Calendar sync
-│   │   │   │   └── WhatsAppHub.jsx       # Automated reminder dispatcher & webhook logs
-│   │   │   ├── Catalog/                  # Module 5 & 9: Services, Bundles & Barcodes
-│   │   │   │   ├── ServicesMaster.jsx    # Treatment catalog & deals master
-│   │   │   │   └── BarcodeGenerator.jsx  # Code-128 thermal barcode printer
-│   │   │   ├── Reports/                  # Module 2 & 11: Analytics & Machine ROI
-│   │   │   │   ├── AnalyticsDashboard.jsx# Real-time KPI cards & sales book
-│   │   │   │   └── MachineROIReport.jsx  # Laser vs HydraFacial vs PRP ROI margins
-│   │   │   ├── HRM/                      # Module 10: Staff, shifts & commissions
-│   │   │   ├── Purchases/                # Module 7 & 8: SRM supplies & refund auditor
-│   │   │   └── Settings/                 # Module 12: Branding, RBAC & SQL backups
+│   │   │   └── Hospital/
+│   │   │       ├── HospitalApp.jsx       # Multi-role Workspace Switcher & Shell
+│   │   │       ├── ReceptionistView.jsx  # Booking Approval, Queue & POS Billing
+│   │   │       ├── DoctorView.jsx        # Call Next Patient & Clinical Record Versioning
+│   │   │       ├── PatientPortal.jsx     # 5-Step Booking Stepper & Medical History
+│   │   │       ├── AdminView.jsx         # Governance, Limits & System Audit Trail
+│   │   │       ├── AIChatModal.jsx       # Governed AI Assistant with RAG & Action Cards
+│   │   │       └── SharedComponents.jsx  # TokenBadge, StatusBadge, AuditTimeline
 │   │   └── lib/
-│   │       ├── api.js                    # FastAPI client with SSE streaming listener
-│   │       ├── supabaseClient.js         # Supabase JS real-time client
-│   │       └── outbox.js                 # PWA Offline Outbox pattern manager
+│   │       └── hospitalApi.js            # REST API Client
 │
-└── server/                               # Backend: Python 3.12 (FastAPI + LangChain + LangGraph + Supabase)
-    ├── main.py                           # FastAPI server entrypoint with CORS & SSE endpoints
-    ├── requirements.txt                  # Python dependencies
+└── server/                               # Backend: Python 3.10+ (FastAPI + SQLite WAL)
+    ├── main.py                           # FastAPI Server Entrypoint
+    ├── database/
+    │   ├── hospital_models.py            # Strict Pydantic Domain Schemas
+    │   ├── hospital_db.py                # Concurrency-safe Persistence & Seeding
+    │   └── hospital_system.db            # SQLite WAL Relational Database
+    ├── services/
+    │   ├── token_service.py              # Atomic Token Allocator & Limit Engine
+    │   ├── queue_service.py              # Call-Next & Check-in Logic
+    │   ├── appointment_service.py        # Booking Requests & Receptionist Approval
+    │   ├── clinical_service.py           # Field Edit Audits & Prescription Versioning
+    │   ├── patient_service.py            # Duplicate Checks & Operational Redaction
+    │   ├── billing_service.py            # POS Receipts & Dues Summary
+    │   └── notification_service.py       # Multi-Channel Failover Engine
     ├── ai/
-    │   ├── langgraph_agent.py            # LangGraph StateGraph (Router -> RAG -> Synthesizer -> Guardrail)
-    │   ├── rag_engine.py                 # Clinical RAG protocol retriever
-    │   ├── knowledge_base.json           # Clinical database (laser fluence, spot sizes, contraindications)
-    │   └── prompt_templates.py           # Medical few-shot prompts & Roman Urdu handlers
-    ├── routers/                          # REST routers for all 12 modules
-    │   ├── pos_router.py
-    │   ├── patient_router.py
-    │   ├── catalog_router.py
-    │   ├── voice_router.py
-    │   ├── whatsapp_router.py
-    │   ├── reports_router.py
-    │   ├── hrm_router.py
-    │   ├── purchases_router.py
-    │   └── backup_router.py
-    └── database/
-        ├── schema.sql                    # PostgreSQL Supabase schema
-        ├── supabase_client.py            # Supabase Python client & resilient fallback store
-        └── models.py                     # Pydantic schemas
+    │   └── hospital_ai_agent.py          # RAG Engine, Intent Classifier & Tool Bounding
+    ├── routers/
+    │   └── hospital_router.py            # REST API Routes (/api/hospital/...)
+    └── tests/
+        └── test_hospital_system.py       # Automated Acceptance Test Suite (8 Tests)
 ```
 
 ---
 
-## 🚀 How to Run the Application
+## 🧪 Running the Acceptance Tests
 
-### 1. Start the Python Backend (`server/`)
+Execute the comprehensive automated acceptance test suite verifying all 8 critical business rules and invariant scenarios:
+
+```bash
+cd server
+python tests/test_hospital_system.py
+```
+
+### Verified Acceptance Scenarios:
+1. `test_01_token_allocation_and_non_reuse_invariant`: Allocates 1-100, cancels Token 2, verifies Token 2 is never reassigned, generates Token 101, and preserves 100 effective patients.
+2. `test_02_queue_call_next_patient_skips_unchecked_in`: Verifies "Call Next Patient" picks Token 4 (waiting) and skips Token 3 (not checked in).
+3. `test_03_ai_booking_request_creates_pending_status`: Verifies AI booking creates PENDING request requiring Receptionist approval.
+4. `test_04_rescheduling_workflow`: Verifies cancellation of old appointment, retirement of old token, and creation of new PENDING booking.
+5. `test_05_clinical_record_edit_with_audit_trail`: Verifies doctor diagnosis edits append immutable audit records with old value, new value, actor ID, and reason.
+6. `test_06_prescription_versioning_immutable_history`: Verifies prescription corrections create `v2` / `v3` with historical versions remaining intact.
+7. `test_07_ai_medical_safety_and_cross_patient_protection`: Verifies refusal to diagnose and prevents cross-patient clinical data leakage.
+8. `test_08_receptionist_clinical_privacy_redaction`: Verifies Receptionist can view operational data but receives 403 Forbidden on clinical record details.
+
+---
+
+## 🖥️ Running the Application
+
+### 1. Start the FastAPI Backend Server
 ```bash
 cd server
 python main.py
 ```
-*The server starts at `http://127.0.0.1:8000` with Swagger UI at `http://127.0.0.1:8000/docs`.*
+*Backend API runs at `http://127.0.0.1:8000` (Swagger UI at `http://127.0.0.1:8000/docs`).*
 
-### 2. Start the React / Next.js Frontend (`client/`)
+### 2. Start the React / Next.js Client
 ```bash
 cd client
 npm run dev
 ```
-*The web application opens at `http://localhost:3000`.*
-
----
-
-## 🌟 Key Features & Workflow Highlights
-
-1. **POS Treatment Billing Terminal & Dual-Format Receipting**:
-   - Quick patient lookup with MRN (`0001-08-2026`), visit count, and due/wallet badges.
-   - Doctor assignment for commission tracking and medical accountability.
-   - Interactive cart with **"Sessions Allowed"** vs **"Used Now"** counters.
-   - On-the-fly custom package builder with session and price overrides.
-   - Automatic queue token generation (`P-01`, `P-02`).
-   - Split checkout (Cash, Card, Wallet, Due Balance).
-   - High-speed 80mm ESC/POS Thermal Receipt and Vector A4 Medical Clinical Invoice.
-
-2. **Patient PRM & Multi-Session Redemption Lifecycle (`receive_payment_dialog`)**:
-   - Track remaining sessions across active multi-session packages.
-   - 1-click "Session Now (+1)" consumption button.
-   - Receive partial/full payments against patient dues.
-
-3. **LangChain & LangGraph GPT Doctor Clinical Assistant**:
-   - Multi-node LangGraph State Machine (Intent Classifier $\rightarrow$ RAG Protocol Retriever $\rightarrow$ English/Roman Urdu Synthesizer $\rightarrow$ Safety Guardrail).
-   - Real-time Server-Sent Events (SSE) word-by-word streaming.
-   - SOAP Clinical Session Note drafting.
-   - Mandatory non-removable disclaimer: *"AI-generated suggestion. Please verify before clinical application."*
-   - 1-Click note injection into POS session remarks.
-
-4. **24/7 AI Voice Booking Agent & Calendar Sync**:
-   - Phone call simulator with audio waveforms and Roman Urdu/English transcription.
-   - Automatically synchronizes with doctor availability and Google Calendar.
-
-5. **Multi-Channel WhatsApp Center**:
-   - High-priority appointment confirmations and 24-hour reminder triggers.
-   - Post-treatment laser and facial care instructions.
-   - Live webhook event logs.
-
-6. **PWA Offline Resilience (Outbox Pattern)**:
-   - Toggle offline mode to queue transactions locally without interruption.
-   - Automatically syncs pending records to the backend when connectivity returns.
-
-7. **Automated Database SQL Backup Engine**:
-   - Generates timestamped `.sql` database dumps (`backup_bbc_pos_db_YYYYMMDD_HHMMSS.sql`) on exit or on demand.
+*Frontend opens at `http://localhost:3000`.*
