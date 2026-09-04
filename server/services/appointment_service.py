@@ -22,29 +22,67 @@ class AppointmentService:
 
     @staticmethod
     def create_booking_request(
-        patient_id: str,
+        patient_id: Optional[str],
         doctor_id: str,
         service_id: str,
         appointment_date: str,
         token_number: Optional[int] = None,
         booking_source: BookingSource = BookingSource.PATIENT_PORTAL,
-        notes: Optional[str] = None
+        notes: Optional[str] = None,
+        patient_name: Optional[str] = None,
+        patient_phone: Optional[str] = None,
+        patient_email: Optional[str] = None,
+        patient_gender: Optional[str] = "female"
     ) -> Dict[str, Any]:
         """
         Creates a new appointment booking request.
         CRITICAL RULE: Always created in 'PENDING' status for Patient Portal and AI Agent.
         Allocates the next available non-reusable token safely.
+        Supports both registered patients and generic public users dynamically.
         """
         with _lock:
             conn = get_db_connection()
             try:
                 cursor = conn.cursor()
+                now_str = datetime.now().isoformat()
 
-                # Verify patient
-                cursor.execute("SELECT id, full_name, phone FROM patients WHERE id = ?", (patient_id,))
-                patient = cursor.fetchone()
+                # Verify or dynamically register generic/new patient
+                patient = None
+                if patient_id:
+                    cursor.execute("SELECT id, full_name, phone FROM patients WHERE id = ?", (patient_id,))
+                    patient = cursor.fetchone()
+
+                # If not found by ID, but phone provided, check by phone
+                if not patient and patient_phone:
+                    cursor.execute("SELECT id, full_name, phone FROM patients WHERE phone = ?", (patient_phone.strip(),))
+                    patient = cursor.fetchone()
+
                 if not patient:
-                    raise ValueError(f"Patient ID '{patient_id}' not found.")
+                    # Dynamically register generic patient so any public user can book appointments
+                    actual_name = patient_name.strip() if patient_name and patient_name.strip() else "Guest Patient"
+                    actual_phone = patient_phone.strip() if patient_phone and patient_phone.strip() else f"+92300{uuid.uuid4().hex[:7]}"
+                    gen_patient_id = f"pat-{uuid.uuid4().hex[:8]}"
+                    gen_user_id = f"user-{uuid.uuid4().hex[:8]}"
+                    gen_cnic = f"35202-{uuid.uuid4().hex[:7]}-1"
+
+                    cursor.execute("""
+                        INSERT INTO users (id, phone, email, password_hash, role, full_name, is_active, created_at)
+                        VALUES (?, ?, ?, 'Patient@123', 'patient', ?, 1, ?)
+                    """, (gen_user_id, actual_phone, patient_email or f"{gen_patient_id}@patient.com", actual_name, now_str))
+
+                    cursor.execute("""
+                        INSERT INTO patients (
+                            id, user_id, full_name, phone, email, gender, dob, cnic, address, emergency_contact,
+                            whatsapp_available, primary_notification_channel, created_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, '1998-01-01', ?, 'Islamabad', ?, 1, 'whatsapp', ?)
+                    """, (
+                        gen_patient_id, gen_user_id, actual_name, actual_phone, patient_email or f"{gen_patient_id}@patient.com",
+                        patient_gender or "female", gen_cnic, actual_phone, now_str
+                    ))
+                    conn.commit()
+                    patient_id = gen_patient_id
+                else:
+                    patient_id = patient["id"]
 
                 # Verify doctor & service relationship
                 cursor.execute("""

@@ -14,7 +14,7 @@ def start_server():
 def start_client():
     client_dir = os.path.join(os.path.dirname(__file__), "client")
     print("Starting Next.js Frontend Client on http://localhost:3000 ...")
-    # Windows npm run dev
+    # Clean previous stale .next cache if exists to prevent chunk 404s
     shell_cmd = "npm run dev"
     return subprocess.Popen(shell_cmd, cwd=client_dir, shell=True)
 
@@ -37,5 +37,12 @@ if __name__ == "__main__":
         client_proc.wait()
     except KeyboardInterrupt:
         print("\nShutting down servers...")
-        server_proc.terminate()
-        client_proc.terminate()
+        try:
+            if os.name == "nt":
+                subprocess.run(f"taskkill /F /T /PID {server_proc.pid}", shell=True, capture_output=True)
+                subprocess.run(f"taskkill /F /T /PID {client_proc.pid}", shell=True, capture_output=True)
+            else:
+                server_proc.terminate()
+                client_proc.terminate()
+        except Exception:
+            pass

@@ -19,10 +19,7 @@ class QueueService:
 
     @staticmethod
     def get_live_queue(doctor_id: Optional[str] = None, appointment_date: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Retrieves today's live queue sorted by token order with patient and appointment metadata."""
-        if not appointment_date:
-            appointment_date = date.today().isoformat()
-
+        """Retrieves live queue sorted by token order with patient and appointment metadata."""
         conn = get_db_connection()
         cursor = conn.cursor()
 
@@ -50,14 +47,28 @@ class QueueService:
             JOIN patients p ON q.patient_id = p.id
             JOIN doctors d ON q.doctor_id = d.id
             JOIN services s ON a.service_id = s.id
-            WHERE q.date = ?
         """
-        params = [appointment_date]
+        where_clauses = []
+        params = []
+
+        if appointment_date and appointment_date.lower() == "all":
+            # Return all active queues
+            where_clauses.append("q.queue_status != 'cancelled'")
+        elif appointment_date:
+            where_clauses.append("q.date = ?")
+            params.append(appointment_date)
+        else:
+            where_clauses.append("q.date = ?")
+            params.append(date.today().isoformat())
+
         if doctor_id:
-            query += " AND q.doctor_id = ?"
+            where_clauses.append("q.doctor_id = ?")
             params.append(doctor_id)
 
-        query += " ORDER BY q.token_number ASC"
+        if where_clauses:
+            query += " WHERE " + " AND ".join(where_clauses)
+
+        query += " ORDER BY q.date ASC, q.token_number ASC"
         cursor.execute(query, tuple(params))
         rows = cursor.fetchall()
         conn.close()

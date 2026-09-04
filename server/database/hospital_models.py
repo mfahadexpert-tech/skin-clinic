@@ -334,6 +334,10 @@ class BookingRequestCreate(BaseModel):
     appointment_date: str  # YYYY-MM-DD
     token_number: Optional[int] = None  # If specified or auto-allocated
     patient_id: Optional[str] = None  # Set by auth middleware or receptionist
+    patient_name: Optional[str] = None  # For generic or new patients
+    patient_phone: Optional[str] = None
+    patient_email: Optional[str] = None
+    patient_gender: Optional[str] = "female"
     booking_source: BookingSource = BookingSource.PATIENT_PORTAL
     notes: Optional[str] = None
 

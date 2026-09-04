@@ -52,7 +52,15 @@ export const hospitalApi = {
   deleteDoctor: (doctorId) => request(`/doctors/${encodeURIComponent(doctorId)}`, {
     method: "DELETE",
   }),
-  getServices: () => request("/services"),
+  getServices: (doctorId) => request(doctorId ? `/services?doctor_id=${encodeURIComponent(doctorId)}` : "/services"),
+  getDoctorServices: (doctorId) => request(`/doctors/${encodeURIComponent(doctorId)}/services`),
+  addDoctorService: (doctorId, serviceData) => request(`/doctors/${encodeURIComponent(doctorId)}/services`, {
+    method: "POST",
+    body: JSON.stringify(serviceData),
+  }),
+  deleteDoctorService: (doctorId, serviceId) => request(`/doctors/${encodeURIComponent(doctorId)}/services/${encodeURIComponent(serviceId)}`, {
+    method: "DELETE",
+  }),
   createService: (serviceData) => request("/services", {
     method: "POST",
     body: JSON.stringify(serviceData),

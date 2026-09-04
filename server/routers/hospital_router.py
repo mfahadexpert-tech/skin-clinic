@@ -350,14 +350,95 @@ def update_doctor(doctor_id: str, req: DoctorUpdate):
 
 
 @router.get("/services", response_model=List[ServiceOut])
-def get_services():
-    """Retrieves all active clinic services."""
+def get_services(doctor_id: Optional[str] = None):
+    """Retrieves all active clinic services, optionally filtered for a specific doctor."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, category, description, base_price, duration_minutes, is_active FROM services WHERE is_active = 1")
+    if doctor_id:
+        cursor.execute("""
+            SELECT s.id, s.name, s.category, s.description, s.base_price, s.duration_minutes, s.is_active
+            FROM services s
+            JOIN doctor_services ds ON s.id = ds.service_id
+            WHERE s.is_active = 1 AND ds.doctor_id = ?
+            ORDER BY s.category ASC, s.name ASC
+        """, (doctor_id,))
+    else:
+        cursor.execute("SELECT id, name, category, description, base_price, duration_minutes, is_active FROM services WHERE is_active = 1 ORDER BY category ASC, name ASC")
     services = [dict(s) for s in cursor.fetchall()]
     conn.close()
     return services
+
+
+@router.get("/doctors/{doctor_id}/services", response_model=List[ServiceOut])
+def get_doctor_services(doctor_id: str):
+    """Retrieves all clinical/aesthetic procedures offered by a specific doctor."""
+    return get_services(doctor_id=doctor_id)
+
+
+@router.post("/doctors/{doctor_id}/services", response_model=ServiceOut)
+def create_doctor_service(doctor_id: str, req: ServiceCreate):
+    """Allows a doctor to write and add new specialized services to their chamber profile."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    now_str = datetime.now().isoformat()
+    srv_id = f"srv-{uuid.uuid4().hex[:8]}"
+
+    try:
+        cursor.execute("SELECT id, full_name FROM doctors WHERE id = ?", (doctor_id,))
+        doc = cursor.fetchone()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Doctor not found")
+
+        cursor.execute("""
+            INSERT INTO services (id, name, category, description, base_price, duration_minutes, is_active, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (srv_id, req.name, req.category, req.description, req.base_price, req.duration_minutes, 1 if req.is_active else 0, now_str))
+
+        cursor.execute("""
+            INSERT INTO doctor_services (id, doctor_id, service_id, created_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(doctor_id, service_id) DO NOTHING
+        """, (str(uuid.uuid4()), doctor_id, srv_id, now_str))
+
+        # Audit log
+        cursor.execute("""
+            INSERT INTO audit_logs (id, actor_id, actor_type, action, resource_type, resource_id, metadata_json, created_at)
+            VALUES (?, ?, 'doctor', 'create_doctor_service', 'services', ?, ?, ?)
+        """, (str(uuid.uuid4()), doctor_id, srv_id, json.dumps({"name": req.name, "category": req.category, "price": req.base_price}), now_str))
+
+        conn.commit()
+        return {
+            "id": srv_id,
+            "name": req.name,
+            "category": req.category,
+            "description": req.description,
+            "base_price": req.base_price,
+            "duration_minutes": req.duration_minutes,
+            "is_active": req.is_active
+        }
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
+
+@router.delete("/doctors/{doctor_id}/services/{service_id}")
+def delete_doctor_service(doctor_id: str, service_id: str):
+    """Unlinks a procedure from a doctor's offerings."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    now_str = datetime.now().isoformat()
+
+    cursor.execute("DELETE FROM doctor_services WHERE doctor_id = ? AND service_id = ?", (doctor_id, service_id))
+    cursor.execute("""
+        INSERT INTO audit_logs (id, actor_id, actor_type, action, resource_type, resource_id, metadata_json, created_at)
+        VALUES (?, ?, 'doctor', 'unlink_doctor_service', 'doctor_services', ?, ?, ?)
+    """, (str(uuid.uuid4()), doctor_id, f"{doctor_id}:{service_id}", json.dumps({"service_id": service_id}), now_str))
+
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "Service unlinked from doctor successfully"}
 
 
 @router.post("/services", response_model=ServiceOut)
@@ -496,17 +577,21 @@ def create_booking_request(req: BookingRequestCreate):
     """
     Submits a booking request.
     Created in PENDING status for Patient Portal / AI Assistant.
+    Supports generic public patients dynamically.
     """
     try:
-        patient_id = req.patient_id or "pat-01"
         return AppointmentService.create_booking_request(
-            patient_id=patient_id,
+            patient_id=req.patient_id,
             doctor_id=req.doctor_id,
             service_id=req.service_id,
             appointment_date=req.appointment_date,
             token_number=req.token_number,
             booking_source=req.booking_source,
-            notes=req.notes
+            notes=req.notes,
+            patient_name=req.patient_name,
+            patient_phone=req.patient_phone,
+            patient_email=req.patient_email,
+            patient_gender=req.patient_gender
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

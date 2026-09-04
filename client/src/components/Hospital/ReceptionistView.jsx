@@ -78,13 +78,22 @@ export default function ReceptionistView({ onPatientSelected }) {
     notes: "Front desk POS receipt"
   });
 
-  const loadData = async () => {
+  const [queueDateFilter, setQueueDateFilter] = useState("all"); // "all", "today", "tomorrow", or "YYYY-MM-DD"
+
+  const loadData = async (targetFilter = queueDateFilter) => {
     setLoading(true);
     try {
+      let dateParam = targetFilter;
+      if (targetFilter === "today") {
+        dateParam = new Date().toISOString().split("T")[0];
+      } else if (targetFilter === "tomorrow") {
+        dateParam = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+      }
+
       const [statsData, pendingData, queueData, docData, srvData] = await Promise.all([
         hospitalApi.getAdminStats(),
         hospitalApi.getPendingBookingRequests(),
-        hospitalApi.getLiveQueue(),
+        hospitalApi.getLiveQueue(null, dateParam),
         hospitalApi.getDoctors(),
         hospitalApi.getServices()
       ]);
@@ -101,16 +110,23 @@ export default function ReceptionistView({ onPatientSelected }) {
   };
 
   useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 12000);
+    loadData(queueDateFilter);
+    const interval = setInterval(() => loadData(queueDateFilter), 12000);
     return () => clearInterval(interval);
-  }, []);
+  }, [queueDateFilter]);
 
-  const handleApprove = async (apptId) => {
+  const handleApprove = async (apptId, reqObj = null) => {
     try {
-      await hospitalApi.processBookingApproval(apptId, "approve", "Approved by Front Desk Reception");
-      setActionAlert({ type: "success", text: "Appointment approved and token confirmed in queue!" });
-      loadData();
+      const res = await hospitalApi.processBookingApproval(apptId, "approve", "Approved by Front Desk Reception");
+      const apptDate = reqObj?.appointment_date || res?.appointment_date || "scheduled date";
+      const patientName = reqObj?.patient_name || res?.patient_name || "Patient";
+      const tokNum = reqObj?.token_number || res?.token_number || "";
+
+      setActionAlert({ 
+        type: "success", 
+        text: `Approved Token #${tokNum} for ${patientName} on ${apptDate}! Successfully added to active Queue.` 
+      });
+      loadData(queueDateFilter);
     } catch (err) {
       setActionAlert({ type: "error", text: err.message });
     }
@@ -120,7 +136,7 @@ export default function ReceptionistView({ onPatientSelected }) {
     try {
       await hospitalApi.processBookingApproval(apptId, "decline", "Declined due to scheduling constraint");
       setActionAlert({ type: "success", text: "Appointment declined and token safely retired." });
-      loadData();
+      loadData(queueDateFilter);
     } catch (err) {
       setActionAlert({ type: "error", text: err.message });
     }
@@ -344,14 +360,14 @@ export default function ReceptionistView({ onPatientSelected }) {
 
                     <div className="flex items-center gap-2 self-end sm:self-center">
                       <button
-                        onClick={() => handleApprove(req.id)}
-                        className="px-3 py-1.5 bg-[#253237] hover:bg-[#1b2428] text-white text-xs font-bold rounded-lg shadow-sm transition-all"
+                        onClick={() => handleApprove(req.id, req)}
+                        className="px-3 py-1.5 bg-[#253237] hover:bg-[#1b2428] text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer"
                       >
                         Approve
                       </button>
                       <button
                         onClick={() => handleDecline(req.id)}
-                        className="px-3 py-1.5 bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold rounded-lg transition-colors"
+                        className="px-3 py-1.5 bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold rounded-lg transition-colors cursor-pointer"
                       >
                         Decline
                       </button>
@@ -413,18 +429,69 @@ export default function ReceptionistView({ onPatientSelected }) {
           
           {/* Live Queue Panel */}
           <div className="bg-white rounded-2xl border border-[#9DB4C0] overflow-hidden shadow-sm">
-            <div className="bg-[#253237] text-white px-5 py-3.5 flex items-center justify-between">
+            <div className="bg-[#253237] text-white px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Activity className="w-5 h-5 text-[#E0FBFC]" />
-                <h3 className="font-bold text-sm sm:text-base">Today's Live Queue</h3>
+                <h3 className="font-bold text-sm sm:text-base">
+                  Live Queue Matrix ({liveQueue.length})
+                </h3>
               </div>
               <span className="text-xs text-[#9DB4C0]">Token Order</span>
             </div>
 
-            <div className="p-4 divide-y divide-[#C2DFE3] max-h-[500px] overflow-y-auto custom-scrollbar">
+            {/* Queue Date Filter Bar */}
+            <div className="p-3 bg-slate-50 border-b border-[#C2DFE3] flex items-center justify-between gap-2 flex-wrap text-xs">
+              <span className="text-[#5C6B73] font-bold text-[11px]">Filter Date:</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setQueueDateFilter("all")}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                    queueDateFilter === "all"
+                      ? "bg-[#253237] text-white border-[#253237]"
+                      : "bg-white text-[#253237] border-[#9DB4C0] hover:bg-[#E0FBFC]"
+                  }`}
+                >
+                  All Active
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQueueDateFilter("today")}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                    queueDateFilter === "today"
+                      ? "bg-[#253237] text-white border-[#253237]"
+                      : "bg-white text-[#253237] border-[#9DB4C0] hover:bg-[#E0FBFC]"
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQueueDateFilter("tomorrow")}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                    queueDateFilter === "tomorrow"
+                      ? "bg-[#253237] text-white border-[#253237]"
+                      : "bg-white text-[#253237] border-[#9DB4C0] hover:bg-[#E0FBFC]"
+                  }`}
+                >
+                  Tomorrow
+                </button>
+                <input
+                  type="date"
+                  value={queueDateFilter !== "all" && queueDateFilter !== "today" && queueDateFilter !== "tomorrow" ? queueDateFilter : ""}
+                  onChange={(e) => {
+                    if (e.target.value) setQueueDateFilter(e.target.value);
+                  }}
+                  className="px-2 py-0.5 border border-[#9DB4C0] rounded-lg text-xs font-medium bg-white text-[#253237]"
+                  title="Select custom date"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 divide-y divide-[#C2DFE3] max-h-[550px] overflow-y-auto custom-scrollbar">
               {liveQueue.length === 0 ? (
                 <div className="py-8 text-center text-xs sm:text-sm text-[#5C6B73]">
-                  No active tokens in today's queue yet.
+                  No active tokens found for this date filter.
                 </div>
               ) : (
                 liveQueue.map((item) => (
@@ -432,7 +499,12 @@ export default function ReceptionistView({ onPatientSelected }) {
                     <div className="flex items-center gap-3">
                       <TokenBadge tokenNumber={item.token_number} status={item.queue_status} size="sm" />
                       <div>
-                        <div className="font-bold text-xs sm:text-sm text-[#253237]">{item.patient_name}</div>
+                        <div className="font-bold text-xs sm:text-sm text-[#253237] flex items-center gap-2">
+                          <span>{item.patient_name}</span>
+                          <span className="text-[10px] px-1.5 py-0.2 bg-[#E0FBFC] text-[#253237] border border-[#9DB4C0] rounded font-bold">
+                            {item.date}
+                          </span>
+                        </div>
                         <div className="text-[11px] text-[#5C6B73]">{item.doctor_name} • {item.service_name}</div>
                         <div className="mt-1">
                           <StatusBadge status={item.queue_status} />
@@ -444,7 +516,7 @@ export default function ReceptionistView({ onPatientSelected }) {
                       {item.queue_status === "not_checked_in" && (
                         <button
                           onClick={() => handleCheckIn(item.appointment_id)}
-                          className="px-2.5 py-1 bg-[#253237] hover:bg-[#1b2428] text-white text-xs font-semibold rounded-md shadow-sm transition-all"
+                          className="px-2.5 py-1 bg-[#253237] hover:bg-[#1b2428] text-white text-xs font-semibold rounded-md shadow-sm transition-all cursor-pointer"
                         >
                           Check-In
                         </button>
@@ -461,7 +533,7 @@ export default function ReceptionistView({ onPatientSelected }) {
                           });
                           setShowPaymentModal(true);
                         }}
-                        className="px-2.5 py-1 bg-[#C2DFE3] hover:bg-[#9DB4C0] text-[#253237] text-xs font-semibold rounded-md flex items-center gap-1"
+                        className="px-2.5 py-1 bg-[#C2DFE3] hover:bg-[#9DB4C0] text-[#253237] text-xs font-semibold rounded-md flex items-center gap-1 cursor-pointer"
                       >
                         <DollarSign className="w-3 h-3" /> Billing
                       </button>
