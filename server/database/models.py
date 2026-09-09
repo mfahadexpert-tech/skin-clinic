@@ -20,17 +20,27 @@ class CustomerCreate(BaseModel):
     name: str = Field(..., description="Full name of the patient")
     phone: str = Field(..., description="Contact phone number")
     email: Optional[str] = Field(None, description="Patient email address")
+    cnic: Optional[str] = Field(None, description="National identity number")
+    gender: Optional[str] = Field("female", description="Gender")
+    dob: Optional[str] = Field("1995-01-01", description="Date of birth")
     address: Optional[str] = Field(None, description="Residential address")
-    skin_type: Optional[str] = Field("Fitzpatrick Type III", description="Skin classification")
+    emergency_contact: Optional[str] = Field(None, description="Emergency contact phone")
+    skin_type: Optional[str] = Field("Fitzpatrick Type III (Medium)", description="Skin classification")
     allergies: Optional[str] = Field(None, description="Any documented allergies or sensitivities")
     medical_notes: Optional[str] = Field(None, description="Clinical baseline notes")
+    advance_balance: Optional[float] = 0.0
+    current_balance: Optional[float] = 0.0
 
 
 class CustomerUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
+    cnic: Optional[str] = None
+    gender: Optional[str] = None
+    dob: Optional[str] = None
     address: Optional[str] = None
+    emergency_contact: Optional[str] = None
     skin_type: Optional[str] = None
     allergies: Optional[str] = None
     medical_notes: Optional[str] = None
@@ -43,7 +53,7 @@ class CustomerUpdate(BaseModel):
 # ==========================================
 class CartItem(BaseModel):
     """Individual line item inside POS billing terminal cart."""
-    product_id: int
+    product_id: Any
     product_name: str
     quantity: float = 1.0
     unit_price: float
@@ -55,8 +65,8 @@ class CartItem(BaseModel):
 
 class SaleCreate(BaseModel):
     """Payload for completing a sale / checkout at the reception desk."""
-    customer_id: int
-    doctor_id: int
+    customer_id: Any
+    doctor_id: Any
     items: List[CartItem]
     subtotal: float
     discount_amount: float = 0.0
@@ -73,9 +83,9 @@ class SplitPaymentItem(BaseModel):
 
 
 class SplitCheckoutRequest(BaseModel):
-    sale_id: Optional[int] = None
-    customer_id: int
-    doctor_id: int
+    sale_id: Optional[Any] = None
+    customer_id: Any
+    doctor_id: Any
     items: List[CartItem]
     subtotal: float
     discount_amount: float = 0.0

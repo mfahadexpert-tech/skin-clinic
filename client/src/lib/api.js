@@ -277,5 +277,21 @@ export const api = {
   async exportSQLBackup() {
     const res = await fetch(`${API_BASE}/settings/backup/export`, { method: "POST" });
     return await res.json();
+  },
+
+  // 11. Calendar & Appointments
+  async getCalendarSchedule(doctorId = null) {
+    const url = doctorId ? `${API_BASE}/calendar/schedule?doctor_id=${encodeURIComponent(doctorId)}` : `${API_BASE}/calendar/schedule`;
+    const res = await fetch(url);
+    return await res.json();
+  },
+
+  async createAppointment(apptData) {
+    const res = await fetch(`${API_BASE}/calendar/book`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(apptData),
+    });
+    return await res.json();
   }
 };

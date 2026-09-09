@@ -3,7 +3,8 @@ import {
   Stethoscope, User, Clock, CheckCircle, AlertCircle, FileText, 
   Plus, Edit3, History, Save, ChevronRight, Activity, ArrowRight, 
   ShieldCheck, Search, Users, ArrowLeft, Calendar, DollarSign, 
-  Sparkles, Award, CheckCircle2, ChevronDown, RefreshCw, Filter
+  Sparkles, Award, CheckCircle2, ChevronDown, RefreshCw, Filter,
+  ShoppingCart, Package, Layers, Check, Scissors, AlertTriangle
 } from "lucide-react";
 import { hospitalApi } from "../../lib/hospitalApi";
 import { TokenBadge, StatusBadge, AuditTimeline, PrescriptionViewer } from "./SharedComponents";
@@ -47,7 +48,7 @@ const DEFAULT_AESTHETIC_DOCTORS = [
   }
 ];
 
-export default function DoctorView({ initialDoctorId = null }) {
+export default function DoctorView({ initialDoctorId = null, onNavigateTo, onPatientSelected, activePatientId = null }) {
   // Directory & Selection States
   const [doctors, setDoctors] = useState(DEFAULT_AESTHETIC_DOCTORS);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
@@ -99,6 +100,34 @@ export default function DoctorView({ initialDoctorId = null }) {
   });
 
   const [doctorQueueDateFilter, setDoctorQueueDateFilter] = useState("all"); // "all", "today", "tomorrow", or "YYYY-MM-DD"
+
+  // Patient Treatment Packages & Multi-Session Tracking (Doctor Exclusive)
+  const [patientPackages, setPatientPackages] = useState([]);
+  const [loadingPackages, setLoadingPackages] = useState(false);
+  const [showNewPackageModal, setShowNewPackageModal] = useState(false);
+  const [showEditPackageModal, setShowEditPackageModal] = useState(false);
+  const [selectedPackageToEdit, setSelectedPackageToEdit] = useState(null);
+
+  const [newPackageForm, setNewPackageForm] = useState({
+    package_name: "",
+    package_type: "multi_package",
+    total_price: 15000,
+    discount_amount: 0,
+    notes: "",
+    items: [
+      { service_id: "", item_name: "", sessions_total: 3, sessions_used: 1, unit_price: 5000 }
+    ]
+  });
+
+  const [editPackageForm, setEditPackageForm] = useState({
+    package_name: "",
+    package_type: "multi_package",
+    total_price: 15000,
+    discount_amount: 0,
+    status: "active",
+    notes: "",
+    items: []
+  });
 
   // Doctor Services Management States
   const [activeChamberTab, setActiveChamberTab] = useState("consultation"); // "consultation" | "services"
@@ -233,11 +262,15 @@ export default function DoctorView({ initialDoctorId = null }) {
       const q = await hospitalApi.getLiveQueue(selectedDoctor.id, dateParam);
       setQueue(q || []);
 
-      // Check if there is an active in_consultation entry
+      // Check if there is an active in_consultation entry or match with activePatientId
       const inConsult = (q || []).find(item => item.queue_status === "in_consultation");
-      if (inConsult) {
-        setActiveConsultation(inConsult);
-        loadPatientClinicalData(inConsult.patient_id);
+      const matched = activePatientId ? (q || []).find(item => item.patient_id === activePatientId) : null;
+      const target = inConsult || matched || (q || [])[0];
+      if (target) {
+        setActiveConsultation(target);
+        loadPatientClinicalData(target.patient_id);
+        loadPatientPackages(target.patient_id, selectedDoctor.id);
+        onPatientSelected?.(target.patient_id);
       }
     } catch (err) {
       console.error(err);
@@ -261,6 +294,131 @@ export default function DoctorView({ initialDoctorId = null }) {
     }
   };
 
+  // Load Doctor-Prescribed Packages & Multi-Session Items for this Patient
+  const loadPatientPackages = async (patientId, docId = selectedDoctor?.id) => {
+    if (!patientId) return;
+    setLoadingPackages(true);
+    try {
+      const pkgs = await hospitalApi.getPatientPackages(patientId, docId);
+      setPatientPackages(pkgs || []);
+    } catch (err) {
+      console.error("Could not load patient packages:", err);
+    } finally {
+      setLoadingPackages(false);
+    }
+  };
+
+  const handleConsumeSession = async (pkgId, itemId) => {
+    if (!activeConsultation || !selectedDoctor) return;
+    try {
+      await hospitalApi.consumePackageSession(
+        activeConsultation.patient_id,
+        pkgId,
+        itemId,
+        {
+          doctor_id: selectedDoctor.id,
+          delta: 1,
+          notes: `Session served in consultation by ${selectedDoctor.full_name}`
+        },
+        "doctor"
+      );
+      setToast({ type: "success", text: "1 Session marked as served today! Progress updated across all clinic desks." });
+      loadPatientPackages(activeConsultation.patient_id, selectedDoctor.id);
+    } catch (err) {
+      setToast({ type: "error", text: err.message || "Failed to record session served." });
+    }
+  };
+
+  const handleOpenEditPackage = (pkg) => {
+    setSelectedPackageToEdit(pkg);
+    setEditPackageForm({
+      package_name: pkg.package_name,
+      package_type: pkg.package_type,
+      total_price: pkg.total_price,
+      discount_amount: pkg.discount_amount,
+      status: pkg.status,
+      notes: pkg.notes || "",
+      items: (pkg.items || []).map(it => ({
+        service_id: it.service_id || "",
+        item_name: it.item_name,
+        sessions_total: it.sessions_total,
+        sessions_used: it.sessions_used,
+        unit_price: it.unit_price
+      }))
+    });
+    setShowEditPackageModal(true);
+  };
+
+  const handleCreatePackageSubmit = async (e) => {
+    e.preventDefault();
+    if (!activeConsultation || !selectedDoctor) return;
+    if (!newPackageForm.package_name.trim()) {
+      setToast({ type: "error", text: "Please enter a Package or Service Name." });
+      return;
+    }
+    const validItems = newPackageForm.items.filter(it => it.item_name.trim() !== "");
+    if (validItems.length === 0) {
+      setToast({ type: "error", text: "Please specify at least one treatment item." });
+      return;
+    }
+
+    try {
+      await hospitalApi.createPatientPackage(
+        activeConsultation.patient_id,
+        {
+          ...newPackageForm,
+          doctor_id: selectedDoctor.id,
+          total_price: Number(newPackageForm.total_price || 0),
+          discount_amount: Number(newPackageForm.discount_amount || 0),
+          items: validItems.map(it => ({
+            service_id: it.service_id || null,
+            item_name: it.item_name.trim(),
+            sessions_total: Number(it.sessions_total || 1),
+            sessions_used: Number(it.sessions_used || 0),
+            unit_price: Number(it.unit_price || 0)
+          }))
+        },
+        "doctor"
+      );
+      setToast({ type: "success", text: `Treatment plan "${newPackageForm.package_name}" prescribed for ${activeConsultation.patient_name}!` });
+      setShowNewPackageModal(false);
+      loadPatientPackages(activeConsultation.patient_id, selectedDoctor.id);
+    } catch (err) {
+      setToast({ type: "error", text: err.message || "Failed to prescribe package." });
+    }
+  };
+
+  const handleEditPackageSubmit = async (e) => {
+    e.preventDefault();
+    if (!activeConsultation || !selectedPackageToEdit || !selectedDoctor) return;
+
+    try {
+      await hospitalApi.updatePatientPackage(
+        activeConsultation.patient_id,
+        selectedPackageToEdit.id,
+        {
+          ...editPackageForm,
+          doctor_id: selectedDoctor.id,
+          total_price: Number(editPackageForm.total_price || 0),
+          discount_amount: Number(editPackageForm.discount_amount || 0),
+          items: editPackageForm.items.map(it => ({
+            service_id: it.service_id || null,
+            item_name: it.item_name.trim(),
+            sessions_total: Number(it.sessions_total || 1),
+            sessions_used: Number(it.sessions_used || 0),
+            unit_price: Number(it.unit_price || 0)
+          }))
+        },
+        "doctor"
+      );
+      setToast({ type: "success", text: "Package configuration updated!" });
+      setShowEditPackageModal(false);
+      loadPatientPackages(activeConsultation.patient_id, selectedDoctor.id);
+    } catch (err) {
+      setToast({ type: "error", text: err.message || "Failed to update package." });
+    }
+  };
+
   useEffect(() => {
     if (selectedDoctor) {
       loadDoctorQueue(doctorQueueDateFilter);
@@ -276,6 +434,7 @@ export default function DoctorView({ initialDoctorId = null }) {
     setCurrentCalled(null);
     setActiveConsultation(null);
     setPatientHistory([]);
+    setPatientPackages([]);
     setActiveChamberTab("consultation");
     loadDoctorServices(doctor.id);
     setClinicalForm({
@@ -320,11 +479,22 @@ export default function DoctorView({ initialDoctorId = null }) {
       setActiveConsultation(calledItem);
       setCurrentCalled(null);
       loadPatientClinicalData(calledItem.patient_id);
+      loadPatientPackages(calledItem.patient_id, selectedDoctor.id);
+      onPatientSelected?.(calledItem.patient_id);
       setToast({ type: "success", text: `Consultation started for ${calledItem.patient_name}` });
       loadDoctorQueue();
     } catch (err) {
       setToast({ type: "error", text: err.message });
     }
+  };
+
+  const handleSelectPatientFromQueue = (item) => {
+    setActiveConsultation(item);
+    loadPatientClinicalData(item.patient_id);
+    if (selectedDoctor) {
+      loadPatientPackages(item.patient_id, selectedDoctor.id);
+    }
+    onPatientSelected?.(item.patient_id);
   };
 
   const handleAddRxItem = () => {
@@ -358,7 +528,14 @@ export default function DoctorView({ initialDoctorId = null }) {
         selectedDoctor.id, 
         selectedDoctor.user_id || "user-doc-01"
       );
-      setToast({ type: "success", text: "Clinical consultation finalized and immutable prescription issued!" });
+      const finishedPatientId = activeConsultation.patient_id;
+      if (onPatientSelected && finishedPatientId) {
+        onPatientSelected(finishedPatientId);
+      }
+      setToast({ 
+        type: "success", 
+        text: `Consultation finalized for ${activeConsultation.patient_name}! Record saved across all clinic portals.` 
+      });
       
       // Reset form
       setClinicalForm({
@@ -958,34 +1135,46 @@ export default function DoctorView({ initialDoctorId = null }) {
                       No patients in queue for this date filter.
                     </div>
                   ) : (
-                    queue.map((item) => (
-                      <div key={item.queue_id || item.appointment_id} className="py-3 flex items-center justify-between text-xs gap-2">
-                        <div className="flex items-center gap-2.5">
-                          <TokenBadge tokenNumber={item.token_number} status={item.queue_status} size="sm" />
-                          <div>
-                            <div className="font-bold text-[#253237] flex items-center gap-1.5">
-                              <span>{item.patient_name}</span>
-                              <span className="text-[10px] px-1 py-0.2 bg-slate-100 text-[#5C6B73] border border-slate-200 rounded font-semibold">
-                                {item.date}
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-[#5C6B73]">{item.service_name}</div>
-                            <div className="mt-0.5">
-                              <StatusBadge status={item.queue_status} />
+                    queue.map((item) => {
+                      const isSelected = activeConsultation?.patient_id === item.patient_id;
+                      return (
+                        <div 
+                          key={item.queue_id || item.appointment_id} 
+                          onClick={() => handleSelectPatientFromQueue(item)}
+                          className={`py-3 px-2 rounded-xl flex items-center justify-between text-xs gap-2 cursor-pointer transition-all ${
+                            isSelected ? "bg-[#E0FBFC] border border-[#253237] shadow-xs" : "hover:bg-slate-50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <TokenBadge tokenNumber={item.token_number} status={item.queue_status} size="sm" />
+                            <div>
+                              <div className="font-bold text-[#253237] flex items-center gap-1.5">
+                                <span>{item.patient_name}</span>
+                                <span className="text-[10px] px-1 py-0.2 bg-slate-100 text-[#5C6B73] border border-slate-200 rounded font-semibold">
+                                  {item.date}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-[#5C6B73]">{item.service_name}</div>
+                              <div className="mt-0.5">
+                                <StatusBadge status={item.queue_status} />
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        {item.queue_status === "called" && (
-                          <button
-                            onClick={() => handleStartConsultation(item)}
-                            className="px-2.5 py-1 bg-[#253237] text-white rounded font-semibold text-[11px] hover:bg-[#1b2428] cursor-pointer shrink-0"
-                          >
-                            Start
-                          </button>
-                        )}
-                      </div>
-                    ))
+                          {item.queue_status === "called" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStartConsultation(item);
+                              }}
+                              className="px-2.5 py-1 bg-[#253237] text-white rounded font-semibold text-[11px] hover:bg-[#1b2428] cursor-pointer shrink-0"
+                            >
+                              Start
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -1005,9 +1194,24 @@ export default function DoctorView({ initialDoctorId = null }) {
                         <p className="text-xs text-[#5C6B73]">In Consultation • {activeConsultation.service_name}</p>
                       </div>
                     </div>
-                    <span className="px-3 py-1 bg-teal-100 text-teal-900 border border-teal-300 text-xs font-bold rounded-full flex items-center gap-1">
-                      <Activity className="w-3.5 h-3.5" /> Chamber Active
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {onNavigateTo && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onPatientSelected?.(activeConsultation.patient_id);
+                            onNavigateTo("pos", activeConsultation.patient_id);
+                          }}
+                          className="px-3 py-1 bg-[#E0FBFC] hover:bg-[#C2DFE3] text-[#253237] border border-[#9DB4C0] text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+                          title="Open POS Terminal to bill this patient for procedures or medication"
+                        >
+                          <ShoppingCart className="w-3.5 h-3.5 text-[#253237]" /> Send to POS
+                        </button>
+                      )}
+                      <span className="px-3 py-1 bg-teal-100 text-teal-900 border border-teal-300 text-xs font-bold rounded-full flex items-center gap-1">
+                        <Activity className="w-3.5 h-3.5" /> Chamber Active
+                      </span>
+                    </div>
                   </div>
 
                   <form onSubmit={handleSaveClinicalRecord} className="space-y-4 text-xs sm:text-sm">
@@ -1059,6 +1263,156 @@ export default function DoctorView({ initialDoctorId = null }) {
                         placeholder="Prescribe topical retinoid, chemical peel session scheduled..."
                         className="w-full clinical-input"
                       />
+                    </div>
+
+                    {/* DOCTOR EXCLUSIVE: Prescribed Services & Multi-Session Treatment Packages */}
+                    <div className="p-4 bg-slate-50 rounded-xl border border-[#9DB4C0] space-y-3.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#C2DFE3] pb-2.5">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Package className="w-4 h-4 text-emerald-800" />
+                            <h4 className="font-bold text-xs sm:text-sm text-[#253237]">Prescribed Services & Multi-Session Treatment Plans</h4>
+                            <span className="text-[10px] bg-emerald-100 text-emerald-900 border border-emerald-300 font-black px-2 py-0.5 rounded-full">
+                              Doctor Clinical Authority Only
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#5C6B73] mt-0.5">
+                            Prescribe combinations of procedures (e.g. 5x Laser, 3x Facials, 2x Manicures/Pedicures), track served sessions, and manage pricing.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewPackageForm({
+                              package_name: "",
+                              package_type: "multi_package",
+                              total_price: 15000,
+                              discount_amount: 0,
+                              notes: "",
+                              items: [
+                                {
+                                  service_id: doctorServices[0]?.id || "",
+                                  item_name: doctorServices[0]?.name || "",
+                                  sessions_total: 3,
+                                  sessions_used: 1,
+                                  unit_price: doctorServices[0]?.base_price || 5000
+                                }
+                              ]
+                            });
+                            setShowNewPackageModal(true);
+                          }}
+                          className="px-3 py-1.5 bg-[#253237] hover:bg-[#1b2428] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm cursor-pointer shrink-0"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-[#E0FBFC]" /> + Prescribe Package / Service
+                        </button>
+                      </div>
+
+                      {/* Active Packages for this patient */}
+                      {loadingPackages ? (
+                        <div className="py-4 text-center text-xs text-[#5C6B73]">
+                          <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-1 text-[#253237]" />
+                          Loading patient treatment packages...
+                        </div>
+                      ) : patientPackages.length === 0 ? (
+                        <div className="p-3.5 bg-white rounded-xl border border-dashed border-[#9DB4C0] text-center space-y-1">
+                          <p className="text-xs font-semibold text-[#253237]">No custom treatment packages prescribed for {activeConsultation.patient_name} yet.</p>
+                          <p className="text-[11px] text-[#5C6B73]">
+                            Click <strong>"+ Prescribe Package / Service"</strong> above to tailor a combination plan (e.g. 5 Laser + 3 Facials) or assign single services.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {patientPackages.map((pkg) => (
+                            <div key={pkg.id} className="p-3 bg-white rounded-xl border border-[#9DB4C0] shadow-xs space-y-2.5">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                                <div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-extrabold text-xs sm:text-sm text-[#253237]">{pkg.package_name}</span>
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                      pkg.status === "completed" ? "bg-emerald-100 text-emerald-800" : "bg-teal-100 text-teal-800"
+                                    }`}>
+                                      {pkg.status === "completed" ? "✓ Completed" : "Active Plan"}
+                                    </span>
+                                    <span className="text-[11px] text-[#5C6B73]">
+                                      Total Sessions: <strong>{pkg.consumed_sessions}/{pkg.total_sessions}</strong>
+                                    </span>
+                                  </div>
+                                  {pkg.notes && <p className="text-[11px] text-[#5C6B73] mt-0.5 italic">"{pkg.notes}"</p>}
+                                </div>
+
+                                <div className="flex items-center gap-2 self-end sm:self-center">
+                                  <div className="text-right">
+                                    <span className="text-xs font-black text-[#253237] block">
+                                      PKR {Number(pkg.final_price ?? pkg.total_price).toLocaleString()}
+                                    </span>
+                                    {Number(pkg.discount_amount || 0) > 0 && (
+                                      <span className="text-[10px] text-emerald-700 font-semibold block">
+                                        (Catalog PKR {Number(pkg.total_price).toLocaleString()} - Discount PKR {Number(pkg.discount_amount).toLocaleString()})
+                                      </span>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditPackage(pkg)}
+                                    className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-[#253237] text-[11px] font-bold rounded flex items-center gap-1 border border-slate-300 cursor-pointer"
+                                    title="Edit sessions or pricing"
+                                  >
+                                    <Edit3 className="w-3 h-3 text-[#5C6B73]" /> Edit
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Package Combination Items & Session Tracker */}
+                              <div className="space-y-1.5">
+                                {(pkg.items || []).map((it) => {
+                                  const pct = Math.min(100, Math.round((it.sessions_used / it.sessions_total) * 100));
+                                  return (
+                                    <div key={it.id} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                                      <div className="space-y-1 flex-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <span className="font-bold text-[#253237]">{it.item_name}</span>
+                                          <span className="text-[11px] font-bold text-[#5C6B73]">
+                                            {it.sessions_used} of {it.sessions_total} used ({it.sessions_remaining} remaining)
+                                          </span>
+                                        </div>
+
+                                        {/* Progress Bar */}
+                                        <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                          <div
+                                            className={`h-1.5 rounded-full transition-all ${
+                                              it.status === "completed" ? "bg-emerald-600" : "bg-teal-600"
+                                            }`}
+                                            style={{ width: `${pct}%` }}
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {/* Action for Doctor to mark session served */}
+                                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                                        {it.sessions_remaining > 0 ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleConsumeSession(pkg.id, it.id)}
+                                            className="px-2.5 py-1 bg-[#253237] hover:bg-[#1b2428] text-white text-[11px] font-bold rounded-md shadow-xs flex items-center gap-1 cursor-pointer"
+                                            title="Click when patient receives this procedure in today's visit"
+                                          >
+                                            <Check className="w-3 h-3 text-[#E0FBFC]" /> Mark 1 Session Served Today
+                                          </button>
+                                        ) : (
+                                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                            ✓ Fully Served
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Prescription Item Builder */}
@@ -1581,6 +1935,404 @@ export default function DoctorView({ initialDoctorId = null }) {
                   className="btn-primary px-5 py-2.5 cursor-pointer disabled:opacity-50"
                 >
                   {isSubmittingService ? "Adding Service..." : "Add to Chamber Offerings"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Prescribe New Multi-Session Treatment Package (Doctor Exclusive) */}
+      {showNewPackageModal && activeConsultation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#253237]/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl border border-[#9DB4C0] max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div className="flex items-center justify-between border-b border-[#C2DFE3] pb-3">
+              <div>
+                <h3 className="font-extrabold text-base sm:text-lg text-[#253237] flex items-center gap-2">
+                  <Package className="w-5 h-5 text-emerald-800" /> Prescribe Treatment Plan / Package
+                </h3>
+                <p className="text-xs text-[#5C6B73]">
+                  Patient: <strong>{activeConsultation.patient_name}</strong> • Attending: <strong>{selectedDoctor.full_name}</strong>
+                </p>
+              </div>
+              <button onClick={() => setShowNewPackageModal(false)} className="text-[#5C6B73] hover:text-[#253237] cursor-pointer text-lg font-bold">✕</button>
+            </div>
+
+            <form onSubmit={handleCreatePackageSubmit} className="space-y-4 text-xs sm:text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-[#253237] mb-1">Package or Procedure Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 5x Laser Hair Removal + 3x HydraFacial Glow Plan"
+                    value={newPackageForm.package_name}
+                    onChange={(e) => setNewPackageForm({ ...newPackageForm, package_name: e.target.value })}
+                    className="w-full clinical-input"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-[#253237] mb-1">Plan Type</label>
+                  <select
+                    value={newPackageForm.package_type}
+                    onChange={(e) => setNewPackageForm({ ...newPackageForm, package_type: e.target.value })}
+                    className="w-full clinical-input font-medium"
+                  >
+                    <option value="multi_package">Multi-Session Combination</option>
+                    <option value="single_service">Single Service (1 Session)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Combination Items Builder */}
+              <div className="p-4 bg-slate-50 rounded-xl border border-[#9DB4C0] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-xs text-[#253237] block">Combination Items & Session Counts</span>
+                    <span className="text-[11px] text-[#5C6B73]">Combine multiple treatments (e.g. 5 Laser, 3 Facials, 2 Manicures)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewPackageForm({
+                        ...newPackageForm,
+                        items: [
+                          ...newPackageForm.items,
+                          { service_id: doctorServices[0]?.id || "", item_name: doctorServices[0]?.name || "", sessions_total: 1, sessions_used: 0, unit_price: 3000 }
+                        ]
+                      });
+                    }}
+                    className="text-xs font-bold text-teal-800 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> + Add Another Item
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
+                  {newPackageForm.items.map((item, idx) => (
+                    <div key={idx} className="p-3 bg-white rounded-lg border border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-2 text-xs items-center">
+                      <div className="sm:col-span-5">
+                        <label className="block text-[10px] font-bold text-[#5C6B73] mb-0.5">Procedure / Item Name</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Procedure (e.g. HydraFacial / Laser / Manicure)"
+                          value={item.item_name}
+                          onChange={(e) => {
+                            const updated = [...newPackageForm.items];
+                            updated[idx].item_name = e.target.value;
+                            setNewPackageForm({ ...newPackageForm, items: updated });
+                          }}
+                          className="w-full clinical-input text-xs"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-bold text-[#5C6B73] mb-0.5">Total Sessions</label>
+                        <input
+                          type="number"
+                          min="1"
+                          required
+                          value={item.sessions_total}
+                          onChange={(e) => {
+                            const updated = [...newPackageForm.items];
+                            updated[idx].sessions_total = Math.max(1, parseInt(e.target.value) || 1);
+                            setNewPackageForm({ ...newPackageForm, items: updated });
+                          }}
+                          className="w-full clinical-input text-xs font-bold text-center"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-bold text-[#5C6B73] mb-0.5">Served Today</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max={item.sessions_total}
+                          required
+                          value={item.sessions_used}
+                          onChange={(e) => {
+                            const updated = [...newPackageForm.items];
+                            updated[idx].sessions_used = Math.min(updated[idx].sessions_total, Math.max(0, parseInt(e.target.value) || 0));
+                            setNewPackageForm({ ...newPackageForm, items: updated });
+                          }}
+                          className="w-full clinical-input text-xs font-bold text-center text-teal-800"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-bold text-[#5C6B73] mb-0.5">Unit Price (PKR)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={item.unit_price}
+                          onChange={(e) => {
+                            const updated = [...newPackageForm.items];
+                            updated[idx].unit_price = Math.max(0, parseFloat(e.target.value) || 0);
+                            setNewPackageForm({ ...newPackageForm, items: updated });
+                          }}
+                          className="w-full clinical-input text-xs font-bold"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-1 text-center pt-3 sm:pt-0">
+                        {newPackageForm.items.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = newPackageForm.items.filter((_, i) => i !== idx);
+                              setNewPackageForm({ ...newPackageForm, items: updated });
+                            }}
+                            className="text-rose-600 hover:text-rose-800 font-black text-sm cursor-pointer"
+                            title="Remove item"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pricing & Discount */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-[#253237] mb-1">Total Package Price (PKR) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={newPackageForm.total_price}
+                    onChange={(e) => setNewPackageForm({ ...newPackageForm, total_price: parseFloat(e.target.value) || 0 })}
+                    className="w-full clinical-input font-extrabold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-[#253237] mb-1">Bundle Discount (PKR)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newPackageForm.discount_amount}
+                    onChange={(e) => setNewPackageForm({ ...newPackageForm, discount_amount: parseFloat(e.target.value) || 0 })}
+                    className="w-full clinical-input text-emerald-800 font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-[#253237] mb-1">Doctor's Schedule Notes & Instructions</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Patient cannot use multiple facials in one day. Sessions must be scheduled 3-4 weeks apart..."
+                  value={newPackageForm.notes}
+                  onChange={(e) => setNewPackageForm({ ...newPackageForm, notes: e.target.value })}
+                  className="w-full clinical-input"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#C2DFE3]">
+                <button
+                  type="button"
+                  onClick={() => setShowNewPackageModal(false)}
+                  className="px-4 py-2 text-[#5C6B73] cursor-pointer font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary px-6 py-2.5 shadow-md flex items-center gap-2 cursor-pointer"
+                >
+                  <Check className="w-4 h-4" /> Prescribe Treatment Package
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Edit Existing Patient Package (Doctor Exclusive) */}
+      {showEditPackageModal && selectedPackageToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#253237]/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl border border-[#9DB4C0] max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div className="flex items-center justify-between border-b border-[#C2DFE3] pb-3">
+              <div>
+                <h3 className="font-extrabold text-base sm:text-lg text-[#253237] flex items-center gap-2">
+                  <Edit3 className="w-5 h-5 text-teal-800" /> Adjust Treatment Package & Sessions
+                </h3>
+                <p className="text-xs text-[#5C6B73]">
+                  Package ID: <strong>{selectedPackageToEdit.id}</strong> • Patient: <strong>{activeConsultation?.patient_name}</strong>
+                </p>
+              </div>
+              <button onClick={() => setShowEditPackageModal(false)} className="text-[#5C6B73] hover:text-[#253237] cursor-pointer text-lg font-bold">✕</button>
+            </div>
+
+            <form onSubmit={handleEditPackageSubmit} className="space-y-4 text-xs sm:text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-[#253237] mb-1">Package Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editPackageForm.package_name}
+                    onChange={(e) => setEditPackageForm({ ...editPackageForm, package_name: e.target.value })}
+                    className="w-full clinical-input"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-[#253237] mb-1">Status</label>
+                  <select
+                    value={editPackageForm.status}
+                    onChange={(e) => setEditPackageForm({ ...editPackageForm, status: e.target.value })}
+                    className="w-full clinical-input font-bold"
+                  >
+                    <option value="active">Active Plan</option>
+                    <option value="completed">Completed</option>
+                    <option value="paused">Paused</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Items & Session Adjustment */}
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-[#9DB4C0] space-y-3">
+                <span className="font-bold text-xs text-[#253237] block">Adjust Total Allowed & Served Sessions</span>
+                <div className="space-y-2.5">
+                  {editPackageForm.items.map((item, idx) => (
+                    <div key={idx} className="p-3 bg-white rounded-lg border border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-2 text-xs items-center">
+                      <div className="sm:col-span-5">
+                        <label className="block text-[10px] font-bold text-[#5C6B73] mb-0.5">Item Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={item.item_name}
+                          onChange={(e) => {
+                            const copy = [...editPackageForm.items];
+                            copy[idx].item_name = e.target.value;
+                            setEditPackageForm({ ...editPackageForm, items: copy });
+                          }}
+                          className="w-full clinical-input text-xs"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-bold text-[#5C6B73] mb-0.5">Total Sessions</label>
+                        <input
+                          type="number"
+                          min="1"
+                          required
+                          value={item.sessions_total}
+                          onChange={(e) => {
+                            const copy = [...editPackageForm.items];
+                            copy[idx].sessions_total = Math.max(1, parseInt(e.target.value) || 1);
+                            setEditPackageForm({ ...editPackageForm, items: copy });
+                          }}
+                          className="w-full clinical-input text-xs font-bold text-center"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-bold text-[#5C6B73] mb-0.5">Sessions Used</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max={item.sessions_total}
+                          required
+                          value={item.sessions_used}
+                          onChange={(e) => {
+                            const copy = [...editPackageForm.items];
+                            copy[idx].sessions_used = Math.min(copy[idx].sessions_total, Math.max(0, parseInt(e.target.value) || 0));
+                            setEditPackageForm({ ...editPackageForm, items: copy });
+                          }}
+                          className="w-full clinical-input text-xs font-bold text-center text-teal-800"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-bold text-[#5C6B73] mb-0.5">Unit Price</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={item.unit_price}
+                          onChange={(e) => {
+                            const copy = [...editPackageForm.items];
+                            copy[idx].unit_price = Math.max(0, parseFloat(e.target.value) || 0);
+                            setEditPackageForm({ ...editPackageForm, items: copy });
+                          }}
+                          className="w-full clinical-input text-xs"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-1 text-center pt-3 sm:pt-0">
+                        {editPackageForm.items.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const copy = editPackageForm.items.filter((_, i) => i !== idx);
+                              setEditPackageForm({ ...editPackageForm, items: copy });
+                            }}
+                            className="text-rose-600 hover:text-rose-800 font-bold text-sm cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-[#253237] mb-1">Total Price (PKR)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={editPackageForm.total_price}
+                    onChange={(e) => setEditPackageForm({ ...editPackageForm, total_price: parseFloat(e.target.value) || 0 })}
+                    className="w-full clinical-input font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-[#253237] mb-1">Discount Amount (PKR)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editPackageForm.discount_amount}
+                    onChange={(e) => setEditPackageForm({ ...editPackageForm, discount_amount: parseFloat(e.target.value) || 0 })}
+                    className="w-full clinical-input text-emerald-800 font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-[#253237] mb-1">Notes & Spacing Guidance</label>
+                <textarea
+                  rows={2}
+                  value={editPackageForm.notes}
+                  onChange={(e) => setEditPackageForm({ ...editPackageForm, notes: e.target.value })}
+                  className="w-full clinical-input"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#C2DFE3]">
+                <button
+                  type="button"
+                  onClick={() => setShowEditPackageModal(false)}
+                  className="px-4 py-2 text-[#5C6B73] cursor-pointer font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary px-6 py-2.5 shadow-md flex items-center gap-2 cursor-pointer"
+                >
+                  <Check className="w-4 h-4" /> Save Package Changes
                 </button>
               </div>
             </form>

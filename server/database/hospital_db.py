@@ -59,12 +59,39 @@ def init_hospital_db():
             address TEXT NOT NULL,
             emergency_contact TEXT NOT NULL,
             whatsapp_available INTEGER DEFAULT 0,
+            mrn TEXT,
+            skin_type TEXT DEFAULT 'Fitzpatrick Type III (Medium)',
+            allergies TEXT DEFAULT 'No known allergies',
+            advance_balance REAL DEFAULT 0.0,
+            current_balance REAL DEFAULT 0.0,
+            visit_count INTEGER DEFAULT 0,
             created_at TEXT NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
         )
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_patients_cnic ON patients(cnic)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_patients_phone ON patients(phone)")
+
+        # Migrate existing patients table if columns are missing
+        cursor.execute("PRAGMA table_info(patients)")
+        existing_cols = {col["name"] for col in cursor.fetchall()}
+        if "mrn" not in existing_cols:
+            cursor.execute("ALTER TABLE patients ADD COLUMN mrn TEXT")
+        if "skin_type" not in existing_cols:
+            cursor.execute("ALTER TABLE patients ADD COLUMN skin_type TEXT DEFAULT 'Fitzpatrick Type III (Medium)'")
+        if "allergies" not in existing_cols:
+            cursor.execute("ALTER TABLE patients ADD COLUMN allergies TEXT DEFAULT 'No known allergies'")
+        if "advance_balance" not in existing_cols:
+            cursor.execute("ALTER TABLE patients ADD COLUMN advance_balance REAL DEFAULT 0.0")
+        if "current_balance" not in existing_cols:
+            cursor.execute("ALTER TABLE patients ADD COLUMN current_balance REAL DEFAULT 0.0")
+        if "visit_count" not in existing_cols:
+            cursor.execute("ALTER TABLE patients ADD COLUMN visit_count INTEGER DEFAULT 0")
+
+        # Backfill MRNs if empty
+        cursor.execute("SELECT id, rowid FROM patients WHERE mrn IS NULL OR mrn = ''")
+        for p_row in cursor.fetchall():
+            cursor.execute("UPDATE patients SET mrn = ? WHERE id = ?", (f"{p_row['rowid']:04d}-08-2026", p_row['id']))
 
         # 3. Doctors Table
         cursor.execute("""
@@ -384,6 +411,68 @@ def init_hospital_db():
         )
         """)
 
+        # 21. Patient Treatment Packages Table (Doctor-governed tailored plans)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS patient_treatment_packages (
+            id TEXT PRIMARY KEY,
+            patient_id TEXT NOT NULL,
+            doctor_id TEXT NOT NULL,
+            package_name TEXT NOT NULL,
+            package_type TEXT NOT NULL DEFAULT 'multi_package', -- 'single_service' or 'multi_package'
+            total_price REAL NOT NULL,
+            discount_amount REAL DEFAULT 0.0,
+            status TEXT DEFAULT 'active', -- 'active', 'completed', 'paused', 'cancelled'
+            notes TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
+            FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE
+        )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_pkg_patient ON patient_treatment_packages(patient_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_pkg_doctor ON patient_treatment_packages(doctor_id)")
+
+        # 22. Patient Package Items Table (Multi-session combination items)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS patient_package_items (
+            id TEXT PRIMARY KEY,
+            package_id TEXT NOT NULL,
+            service_id TEXT,
+            item_name TEXT NOT NULL,
+            sessions_total INTEGER NOT NULL DEFAULT 1,
+            sessions_used INTEGER NOT NULL DEFAULT 0,
+            unit_price REAL NOT NULL DEFAULT 0.0,
+            last_served_date TEXT,
+            last_served_doctor_id TEXT,
+            status TEXT DEFAULT 'in_progress', -- 'pending', 'in_progress', 'completed'
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (package_id) REFERENCES patient_treatment_packages(id) ON DELETE CASCADE,
+            FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL
+        )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_pkg_items_pkg ON patient_package_items(package_id)")
+
+        # 23. Patient Session Consumption Logs (Audit trail for each served session)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS patient_session_logs (
+            id TEXT PRIMARY KEY,
+            package_id TEXT NOT NULL,
+            item_id TEXT NOT NULL,
+            patient_id TEXT NOT NULL,
+            doctor_id TEXT NOT NULL,
+            visit_id TEXT,
+            action TEXT NOT NULL, -- 'session_served', 'session_reverted', 'package_adjusted'
+            sessions_delta INTEGER NOT NULL DEFAULT 1,
+            notes TEXT,
+            timestamp TEXT NOT NULL,
+            FOREIGN KEY (package_id) REFERENCES patient_treatment_packages(id) ON DELETE CASCADE,
+            FOREIGN KEY (item_id) REFERENCES patient_package_items(id) ON DELETE CASCADE,
+            FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
+            FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE
+        )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_session_logs_pkg ON patient_session_logs(package_id)")
+
         conn.commit()
         conn.close()
 
@@ -511,11 +600,11 @@ def seed_baseline_data():
         # 5. Seed Patients and Initial Workflows only if fresh DB
         if not has_users:
             patients_data = [
-                ("pat-01", "user-pat-01", "Zainab Fatima", "+923011112233", "zainab@gmail.com", "female", "1996-05-14", "35202-1234567-1", "House 12, Street 4, F-7/2, Islamabad", "+923011112200", 1),
-                ("pat-02", "user-pat-02", "Bilal Hassan", "+923022223344", "bilal@gmail.com", "male", "1991-11-20", "35202-7654321-2", "Apartment 4B, Gulberg III, Lahore", "+923022223300", 1),
-                ("pat-03", "user-pat-03", "Hamza Ali", "+923033334455", "hamza@gmail.com", "male", "1998-02-10", "35202-9988776-3", "House 88, Phase 5, DHA, Lahore", "+923033334400", 0),
-                ("pat-04", "user-pat-04", "Maryam Siddiqui", "+923044445566", "maryam@gmail.com", "female", "1994-08-30", "35202-3344556-4", "Street 9, Clifton Block 4, Karachi", "+923044445500", 1),
-                ("pat-05", "user-pat-05", "Usman Sheikh", "+923055556677", "usman@gmail.com", "male", "1988-04-18", "35202-5566778-5", "Sector G-11/3, Islamabad", "+923055556600", 1),
+                ("pat-01", "user-pat-01", "Zainab Fatima", "+923011112233", "zainab@gmail.com", "female", "1996-05-14", "35202-1234567-1", "House 12, Street 4, F-7/2, Islamabad", "+923011112200", 1, "0001-08-2026", "Fitzpatrick Type III (Medium)", "Sensitive to AHA Peels", 1500.0, 0.0, 3),
+                ("pat-02", "user-pat-02", "Bilal Hassan", "+923022223344", "bilal@gmail.com", "male", "1991-11-20", "35202-7654321-2", "Apartment 4B, Gulberg III, Lahore", "+923022223300", 1, "0002-08-2026", "Fitzpatrick Type IV (Olive)", "Topical Lidocaine 10%", 0.0, 3000.0, 2),
+                ("pat-03", "user-pat-03", "Hamza Ali", "+923033334455", "hamza@gmail.com", "male", "1998-02-10", "35202-9988776-3", "House 88, Phase 5, DHA, Lahore", "+923033334400", 0, "0003-08-2026", "Fitzpatrick Type III (Medium)", "No known allergies", 0.0, 0.0, 1),
+                ("pat-04", "user-pat-04", "Maryam Siddiqui", "+923044445566", "maryam@gmail.com", "female", "1994-08-30", "35202-3344556-4", "Street 9, Clifton Block 4, Karachi", "+923044445500", 1, "0004-08-2026", "Fitzpatrick Type II (Fair)", "Aspirin & NSAIDs", 5000.0, 0.0, 5),
+                ("pat-05", "user-pat-05", "Usman Sheikh", "+923055556677", "usman@gmail.com", "male", "1988-04-18", "35202-5566778-5", "Sector G-11/3, Islamabad", "+923055556600", 1, "0005-08-2026", "Fitzpatrick Type IV (Olive)", "No known allergies", 1000.0, 0.0, 4),
             ]
 
             for pat in patients_data:
@@ -525,9 +614,13 @@ def seed_baseline_data():
                 """, (pat[1], pat[3], pat[4], "pat123", pat[2], now_str))
 
                 cursor.execute("""
-                INSERT INTO patients (id, user_id, full_name, phone, email, gender, dob, cnic, address, emergency_contact, whatsapp_available, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (pat[0], pat[1], pat[2], pat[3], pat[4], pat[5], pat[6], pat[7], pat[8], pat[9], pat[10], now_str))
+                INSERT INTO patients (
+                    id, user_id, full_name, phone, email, gender, dob, cnic, address, 
+                    emergency_contact, whatsapp_available, mrn, skin_type, allergies, 
+                    advance_balance, current_balance, visit_count, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (pat[0], pat[1], pat[2], pat[3], pat[4], pat[5], pat[6], pat[7], pat[8], pat[9], pat[10], pat[11], pat[12], pat[13], pat[14], pat[15], pat[16], now_str))
 
                 # Set Notification Preferences
                 cursor.execute("""
@@ -619,6 +712,12 @@ def seed_baseline_data():
             VALUES (?, ?, 'pat-02', ?, ?, 1, 1)
             """, (str(uuid.uuid4()), doc_1_id, today_str, today_str))
 
+            # Payment record for pat-02 (Syncs Total Billed: 5500, Paid: 2500, Due: 3000)
+            cursor.execute("""
+            INSERT INTO payments (id, appointment_id, patient_id, total_amount, amount_paid, amount_due, payment_status, payment_method, notes, created_at)
+            VALUES (?, ?, 'pat-02', 5500.0, 2500.0, 3000.0, 'partial', 'cash', 'Initial consult & partial procedure advance', ?)
+            """, (str(uuid.uuid4()), appt_2_id, now_str))
+
             # Token 3 (CONFIRMED but NOT CHECKED IN)
             tok_3_id = "tok-03"
             appt_3_id = "appt-03"
@@ -663,6 +762,35 @@ def seed_baseline_data():
             INSERT INTO audit_logs (id, actor_id, actor_type, action, resource_type, resource_id, metadata_json, created_at)
             VALUES (?, 'user-admin-01', 'admin', 'system_init', 'database', 'hospital_system', '{"status": "initialized_successfully"}', ?)
             """, (str(uuid.uuid4()), now_str))
+
+        # Check if packages seeded
+        cursor.execute("SELECT COUNT(*) as count FROM patient_treatment_packages")
+        has_packages = cursor.fetchone()["count"] > 0
+        if not has_packages:
+            # Seed a multi-session package prescribed by Dr. Sarah Khan (doc-02) for Zainab Fatima (pat-01)
+            pkg_id = "pkg-001"
+            cursor.execute("""
+            INSERT INTO patient_treatment_packages (id, patient_id, doctor_id, package_name, package_type, total_price, discount_amount, status, notes, created_at, updated_at)
+            VALUES (?, 'pat-01', 'doc-02', '6-Session Full Body Laser & Skin Rejuvenation Plan', 'multi_package', 36000.0, 6000.0, 'active', 'Combination therapy: Laser hair reduction and deep hydrafacials spaced 3-4 weeks apart.', ?, ?)
+            """, (pkg_id, now_str, now_str))
+
+            item_1_id = "item-001"
+            cursor.execute("""
+            INSERT INTO patient_package_items (id, package_id, service_id, item_name, sessions_total, sessions_used, unit_price, last_served_date, last_served_doctor_id, status, created_at)
+            VALUES (?, ?, 'srv-09', 'Triple-Wavelength Diode Laser Hair Removal', 6, 2, 5000.0, ?, 'doc-02', 'in_progress', ?)
+            """, (item_1_id, pkg_id, today_str, now_str))
+
+            item_2_id = "item-002"
+            cursor.execute("""
+            INSERT INTO patient_package_items (id, package_id, service_id, item_name, sessions_total, sessions_used, unit_price, last_served_date, last_served_doctor_id, status, created_at)
+            VALUES (?, ?, 'srv-03', 'HydraFacial MD Elite Glow', 2, 1, 6000.0, ?, 'doc-02', 'in_progress', ?)
+            """, (item_2_id, pkg_id, today_str, now_str))
+
+            # Session consumption audit logs
+            cursor.execute("""
+            INSERT INTO patient_session_logs (id, package_id, item_id, patient_id, doctor_id, action, sessions_delta, notes, timestamp)
+            VALUES (?, ?, ?, 'pat-01', 'doc-02', 'session_served', 1, 'Initial session completed during consultation.', ?)
+            """, (str(uuid.uuid4()), pkg_id, item_1_id, now_str))
 
         conn.commit()
         conn.close()

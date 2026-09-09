@@ -19,7 +19,8 @@ from database.hospital_models import (
     ClinicalRecordCreate, ClinicalRecordUpdate, ClinicalRecordOut,
     PrescriptionVersionCorrection, PrescriptionOut,
     PaymentCreate, PaymentOut, NotificationPreferenceUpdate,
-    AIChatInput, AIChatResponse, DashboardStatsOut, AuditLogOut
+    AIChatInput, AIChatResponse, DashboardStatsOut, AuditLogOut,
+    PatientPackageCreateRequest, PatientPackageUpdateRequest, ConsumeSessionRequest, PatientPackageOut
 )
 from database.hospital_db import get_db_connection, _lock
 from services.token_service import TokenService
@@ -29,6 +30,7 @@ from services.clinical_service import ClinicalService
 from services.patient_service import PatientService
 from services.billing_service import BillingService
 from services.notification_service import NotificationService
+from services.treatment_package_service import TreatmentPackageService
 from ai.hospital_ai_agent import HospitalAIAgent
 
 
@@ -769,6 +771,93 @@ def get_patient_clinical_records(
         return ClinicalService.get_patient_clinical_records(patient_id, caller_role, caller_id, doctor_id)
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))
+
+
+# ==============================================================================
+# PATIENT TREATMENT PACKAGES & MULTI-SESSION COMBINATIONS (Doctor Governed)
+# ==============================================================================
+
+@router.get("/patients/{patient_id}/packages", response_model=List[PatientPackageOut])
+def get_patient_packages(patient_id: str, doctor_id: Optional[str] = None):
+    """
+    Retrieves all doctor-prescribed treatment packages and multi-session progress for a patient.
+    Accessible across portals (Doctor, Receptionist, Patient, POS) for view-only or chamber tracking.
+    """
+    return TreatmentPackageService.list_patient_packages(patient_id, doctor_id)
+
+
+@router.post("/patients/{patient_id}/packages", response_model=PatientPackageOut)
+def create_patient_package(
+    patient_id: str,
+    req: PatientPackageCreateRequest,
+    caller_role: str = "doctor"
+):
+    """
+    Doctor Consultation Workflow: Prescribes a custom treatment plan / multi-session package
+    for a specific patient. Strictly restricted to Doctor or Admin.
+    """
+    if caller_role not in ["doctor", "admin"]:
+        raise HTTPException(status_code=403, detail="Only doctors or administrators have clinical authority to prescribe treatment packages.")
+    try:
+        return TreatmentPackageService.create_patient_package(patient_id, req.doctor_id, req)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/patients/{patient_id}/packages/{package_id}", response_model=PatientPackageOut)
+def update_patient_package(
+    patient_id: str,
+    package_id: str,
+    req: PatientPackageUpdateRequest,
+    caller_role: str = "doctor"
+):
+    """
+    Doctor Consultation Workflow: Adjusts sessions, items, or pricing of an existing package.
+    Strictly restricted to Doctor or Admin.
+    """
+    if caller_role not in ["doctor", "admin"]:
+        raise HTTPException(status_code=403, detail="Only doctors or administrators have clinical authority to update treatment packages.")
+    try:
+        doctor_id = req.doctor_id or "doc-01"
+        return TreatmentPackageService.update_patient_package(package_id, doctor_id, req)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/patients/{patient_id}/packages/{package_id}/consume-session/{item_id}", response_model=PatientPackageOut)
+def consume_package_session(
+    patient_id: str,
+    package_id: str,
+    item_id: str,
+    req: ConsumeSessionRequest,
+    caller_role: str = "doctor"
+):
+    """
+    Doctor Consultation Workflow: Records that a patient received a session today (+1 served).
+    Strictly restricted to Doctor or Admin during consultation.
+    """
+    if caller_role not in ["doctor", "admin"]:
+        raise HTTPException(status_code=403, detail="Only attending doctors or administrators can mark sessions as served.")
+    try:
+        return TreatmentPackageService.consume_package_session(
+            package_id=package_id,
+            item_id=item_id,
+            doctor_id=req.doctor_id,
+            delta=req.delta,
+            notes=req.notes
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/packages/{package_id}", response_model=PatientPackageOut)
+def get_treatment_package(package_id: str):
+    """Retrieves full details of a specific treatment package."""
+    pkg = TreatmentPackageService.get_package_by_id(package_id)
+    if not pkg:
+        raise HTTPException(status_code=404, detail="Treatment package not found.")
+    return pkg
+
 
 
 # ==============================================================================

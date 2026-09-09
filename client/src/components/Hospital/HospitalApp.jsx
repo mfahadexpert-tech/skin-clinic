@@ -5,22 +5,34 @@ import {
   Building2, Stethoscope, Users, User, ShieldCheck, Bot, 
   Sparkles, CheckCircle2, ChevronDown, Menu, X, Bell,
   ChevronLeft, ChevronRight, Settings, Activity, Maximize2, Minimize2,
-  FileText, ArrowLeft, ArrowRight
+  FileText, ArrowLeft, ArrowRight, ShoppingCart, Calendar, UserCheck
 } from "lucide-react";
 import ReceptionistView from "./ReceptionistView";
 import DoctorView from "./DoctorView";
 import PatientPortal from "./PatientPortal";
 import AdminView from "./AdminView";
+import POSTerminal from "../POS/POSTerminal";
+import PatientDirectory from "../PRM/PatientDirectory";
+import CalendarManager from "../Calendar/CalendarManager";
 import AIChatModal from "./AIChatModal";
 
 export default function HospitalApp() {
-  const [currentRole, setCurrentRole] = useState("receptionist"); // "receptionist", "doctor", "patient", "admin"
+  const [currentRole, setCurrentRole] = useState("receptionist"); // "receptionist", "pos", "prm", "appointments", "doctor", "patient", "admin"
   const [activePatientId, setActivePatientId] = useState("pat-01");
   const [showAIChat, setShowAIChat] = useState(false);
   
   // Sidebar visibility & fullscreen toggle state
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
+  // Central Navigation & Patient Coordination Handler
+  const handleNavigateTo = (targetRole, patientId = null) => {
+    if (patientId) {
+      setActivePatientId(String(patientId));
+    }
+    setCurrentRole(targetRole);
+    setMobileDrawerOpen(false);
+  };
 
   // User Profile Mapping by Active Role
   const profileDetails = {
@@ -29,6 +41,24 @@ export default function HospitalApp() {
       role: "Chief Receptionist & Triage",
       avatarBg: "bg-teal-700",
       avatarInitials: "FN"
+    },
+    pos: {
+      name: "Front Desk Cashier",
+      role: "POS Billing & Package Checkout",
+      avatarBg: "bg-emerald-700",
+      avatarInitials: "POS"
+    },
+    prm: {
+      name: "Patient Registry Desk",
+      role: "Unified Patient Records & PRM",
+      avatarBg: "bg-blue-700",
+      avatarInitials: "PRM"
+    },
+    appointments: {
+      name: "Schedule Coordinator",
+      role: "Doctor Slots & Appointment Calendar",
+      avatarBg: "bg-indigo-800",
+      avatarInitials: "CAL"
     },
     doctor: {
       name: "Dr. Ahmed Tariq",
@@ -63,6 +93,27 @@ export default function HospitalApp() {
           icon: Users,
           badge: "Queue & POS",
           desc: "Front Desk Operations & Approvals"
+        },
+        {
+          id: "pos",
+          label: "POS Billing",
+          icon: ShoppingCart,
+          badge: "Terminal",
+          desc: "Clinical POS & Treatment Billing"
+        },
+        {
+          id: "prm",
+          label: "Patients (PRM)",
+          icon: UserCheck,
+          badge: "Unified DB",
+          desc: "Live Directory & Central Patient Records"
+        },
+        {
+          id: "appointments",
+          label: "Calendar & Schedule",
+          icon: Calendar,
+          badge: "Bookings",
+          desc: "Doctor Timetable & Slot Allocations"
         },
         {
           id: "doctor",
@@ -323,6 +374,9 @@ export default function HospitalApp() {
                 <span className="text-xs text-[#5C6B73]">/</span>
                 <span className="text-sm font-black text-[#253237]">
                   {currentRole === "receptionist" && "Receptionist Desk & Triage"}
+                  {currentRole === "pos" && "Clinical POS & Treatment Billing Terminal"}
+                  {currentRole === "prm" && "Patients Directory & Central Registry"}
+                  {currentRole === "appointments" && "Appointments Calendar & Doctor Timetable"}
                   {currentRole === "doctor" && "Doctor Chamber & Consultations"}
                   {currentRole === "patient" && "Patient Portal & Booking"}
                   {currentRole === "admin" && "Hospital Administration & Governance"}
@@ -346,13 +400,50 @@ export default function HospitalApp() {
 
         {/* Workspace Body */}
         <main className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-          {currentRole === "receptionist" && <ReceptionistView />}
-          {currentRole === "doctor" && <DoctorView />}
+          {currentRole === "receptionist" && (
+            <ReceptionistView 
+              activePatientId={activePatientId}
+              onPatientSelected={setActivePatientId} 
+              onNavigateTo={handleNavigateTo} 
+            />
+          )}
+          {currentRole === "pos" && (
+            <POSTerminal 
+              initialPatientId={activePatientId} 
+              activePatientId={activePatientId}
+              onPatientSelected={setActivePatientId} 
+              onNavigateTo={handleNavigateTo} 
+            />
+          )}
+          {currentRole === "prm" && (
+            <PatientDirectory 
+              activePatientId={activePatientId}
+              onSelectPatient={setActivePatientId} 
+              onPatientSelected={setActivePatientId}
+              onNavigateTo={handleNavigateTo} 
+            />
+          )}
+          {currentRole === "appointments" && (
+            <CalendarManager 
+              activePatientId={activePatientId}
+              onSelectPatient={setActivePatientId} 
+              onNavigateTo={handleNavigateTo} 
+            />
+          )}
+          {currentRole === "doctor" && (
+            <DoctorView 
+              activePatientId={activePatientId}
+              initialPatientId={activePatientId}
+              onPatientSelected={setActivePatientId} 
+              onNavigateTo={handleNavigateTo} 
+            />
+          )}
           {currentRole === "patient" && (
             <PatientPortal 
               patientId={activePatientId} 
               onPatientChange={setActivePatientId} 
               onOpenAI={() => setShowAIChat(true)} 
+              onNavigateTo={handleNavigateTo} 
             />
           )}
           {currentRole === "admin" && <AdminView />}

@@ -18,112 +18,134 @@ from datetime import datetime
 from database.supabase_client import clinic_store
 from database.models import CustomerCreate, CustomerUpdate, SessionRedeemRequest
 
+from database.hospital_models import PatientRegistrationRequest, Gender, NotificationChannel
+from services.patient_service import PatientService
+import uuid
+
 router = APIRouter(prefix="/api/patients", tags=["Patient PRM & Sessions"])
 
 
 @router.get("/")
 def list_patients(search: Optional[str] = Query(None, description="Search by Name, Phone, or MRN")):
     """
-    Lists all clinic patients. If `search` is provided, filters across
-    name, phone, or formatted Medical ID (e.g. 0001-08-2026).
+    Lists all clinic patients from the single authoritative database.
+    If `search` is provided, filters across name, phone, CNIC, or MRN.
     """
-    patients = clinic_store.customers
     if search:
-        s = search.lower().strip()
-        patients = [
-            p for p in patients
-            if s in p["name"].lower() or s in p["phone"] or s in p["mrn"].lower()
-        ]
+        patients = PatientService.search_patients(search)
+    else:
+        patients = PatientService.list_patients(limit=200)
+
     return {"success": True, "count": len(patients), "patients": patients}
 
 
 @router.get("/{patient_id}")
-def get_patient_details(patient_id: int):
+def get_patient_details(patient_id: str):
     """
-    Returns full patient profile.
+    Returns full patient profile and sales/visit history.
     """
-    patient = next((p for p in clinic_store.customers if p["id"] == patient_id), None)
-    if not patient:
-        raise HTTPException(status_code=404, detail="Patient record not found.")
-
-    patient_sales = [s for s in clinic_store.sales if s["customer_id"] == patient_id]
-
-    return {
-        "success": True,
-        "patient": patient,
-        "sales_history": patient_sales
-    }
+    try:
+        op_data = PatientService.get_patient_operational_data(patient_id)
+        patient_sales = [s for s in clinic_store.sales if str(s.get("customer_id")) == str(patient_id) or str(s.get("customer_mrn")) == str(op_data.get("mrn"))]
+        return {
+            "success": True,
+            "patient": op_data,
+            "sales_history": patient_sales
+        }
+    except ValueError:
+        patient = clinic_store.get_patient_by_id(patient_id)
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient record not found.")
+        patient_sales = [s for s in clinic_store.sales if str(s.get("customer_id")) == str(patient_id)]
+        return {
+            "success": True,
+            "patient": patient,
+            "sales_history": patient_sales
+        }
 
 
 @router.post("/register")
 def register_patient(payload: CustomerCreate):
     """
-    Registers a walk-in patient from POS or PRM directory.
-    Automatically assigns unique sequential MRN (e.g. 0004-08-2026).
+    Registers a walk-in patient from POS or PRM directory into the authoritative database.
+    Automatically assigns unique sequential MRN (e.g. 0006-08-2026).
     """
-    new_mrn = clinic_store.get_next_mrn()
-    new_patient = {
-        "id": len(clinic_store.customers) + 1,
-        "mrn": new_mrn,
-        "name": payload.name,
-        "phone": payload.phone,
-        "email": payload.email,
-        "address": payload.address,
-        "skin_type": payload.skin_type or "Medium Asian Skin",
-        "allergies": payload.allergies or "None reported",
-        "medical_notes": payload.medical_notes or "Walk-in patient registration.",
-        "visit_count": 0,
-        "current_balance": 0.0,
-        "advance_balance": 0.0,
-        "created_at": datetime.now().isoformat()
-    }
-    clinic_store.customers.append(new_patient)
+    # Auto-generate unique placeholder CNIC if not provided by cashier/POS
+    cnic = payload.cnic.strip() if payload.cnic else f"35202-{abs(hash(payload.phone)) % 9000000 + 1000000}-1"
+    gender_enum = Gender.FEMALE if (payload.gender or "").lower() == "female" else Gender.MALE
 
+    reg_req = PatientRegistrationRequest(
+        full_name=payload.name,
+        phone=payload.phone,
+        email=payload.email,
+        gender=gender_enum,
+        dob=payload.dob or "1995-01-01",
+        cnic=cnic,
+        address=payload.address or "Walk-in registration",
+        emergency_contact=payload.emergency_contact or payload.phone,
+        whatsapp_available=True,
+        primary_notification_channel=NotificationChannel.WHATSAPP,
+        skin_type=payload.skin_type or "Fitzpatrick Type III (Medium)",
+        allergies=payload.allergies or "No known allergies",
+        advance_balance=float(payload.advance_balance or 0.0),
+        current_balance=float(payload.current_balance or 0.0)
+    )
+
+    try:
+        res = PatientService.register_patient(reg_req)
+    except ValueError as e:
+        # If duplicate detected, return the existing patient with warning
+        dup_check = PatientService.check_duplicate(cnic=cnic, phone=payload.phone, email=payload.email)
+        if dup_check.has_duplicate and dup_check.existing_patient:
+            return {
+                "success": True,
+                "message": f"Patient already exists: {dup_check.warning_message}",
+                "patient": dup_check.existing_patient,
+                "patients": PatientService.list_patients(100)
+            }
+        raise HTTPException(status_code=400, detail=str(e))
+
+    all_patients = PatientService.list_patients(100)
     return {
         "success": True,
-        "message": f"Patient registered successfully with MRN: {new_mrn}",
-        "patient": new_patient,
-        "patients": clinic_store.customers
+        "message": f"Patient registered successfully with MRN: {res.get('mrn')}",
+        "patient": res,
+        "patients": all_patients
     }
 
 
 @router.put("/{patient_id}")
-def update_patient(patient_id: int, payload: Dict[str, Any]):
+def update_patient(patient_id: str, payload: Dict[str, Any]):
     """
-    Updates an existing patient record.
+    Updates an existing patient record in the authoritative database.
     """
-    patient = next((p for p in clinic_store.customers if p["id"] == patient_id), None)
-    if not patient:
-        raise HTTPException(status_code=404, detail="Patient record not found.")
-
-    if "name" in payload:
-        patient["name"] = payload["name"]
-    if "phone" in payload:
-        patient["phone"] = payload["phone"]
-    if "skin_type" in payload:
-        patient["skin_type"] = payload["skin_type"]
-    if "allergies" in payload:
-        patient["allergies"] = payload["allergies"]
-
-    return {
-        "success": True,
-        "message": "Patient updated successfully",
-        "patient": patient,
-        "patients": clinic_store.customers
-    }
+    try:
+        PatientService.update_patient(patient_id, payload)
+        updated = PatientService.get_patient_operational_data(patient_id)
+        return {
+            "success": True,
+            "message": "Patient updated successfully",
+            "patient": updated,
+            "patients": PatientService.list_patients(100)
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete("/{patient_id}")
-def delete_patient(patient_id: int):
+def delete_patient(patient_id: str):
     """
-    Deletes a patient record from the database.
+    Deletes a patient record from the authoritative database.
     """
-    clinic_store.customers = [p for p in clinic_store.customers if p["id"] != patient_id]
-    return {
-        "success": True,
-        "message": "Patient record deleted successfully",
-        "patients": clinic_store.customers
-    }
+    try:
+        PatientService.delete_patient(patient_id)
+        return {
+            "success": True,
+            "message": "Patient record deleted successfully",
+            "patients": PatientService.list_patients(100)
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/redeem-session")

@@ -9,7 +9,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Search, 
@@ -17,42 +17,101 @@ import {
   History, 
   Phone,
   Image as ImageIcon,
-  Trash2
+  Trash2,
+  ShoppingCart,
+  Stethoscope,
+  User,
+  ArrowRight,
+  RefreshCw
 } from 'lucide-react';
 import SessionRedeemModal from './SessionRedeemModal';
 import BeforeAfterGallery from './BeforeAfterGallery';
 import { api } from '@/lib/api';
+import { hospitalApi } from '@/lib/hospitalApi';
 
-export default function PatientDirectory({ patients = [], onRedeemSession, onRegisterPatient, onDeletePatient }) {
+export default function PatientDirectory({ 
+  patients = [], 
+  onRedeemSession, 
+  onRegisterPatient, 
+  onDeletePatient,
+  onPatientSelected,
+  onNavigateTo 
+}) {
   const [patientList, setPatientList] = useState(patients);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPatientForHistory, setSelectedPatientForHistory] = useState(null);
   const [selectedPatientForGallery, setSelectedPatientForGallery] = useState(null);
   const [isAddPatientOpen, setIsAddPatientOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // New Patient Form
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [skinType, setSkinType] = useState('Medium Asian Skin');
+  const [skinType, setSkinType] = useState('Fitzpatrick Type III (Medium)');
   const [allergies, setAllergies] = useState('');
 
-  React.useEffect(() => {
-    if (patients && patients.length > 0) setPatientList(patients);
+  const fetchLivePatients = async () => {
+    setLoading(true);
+    try {
+      const data = await hospitalApi.listPatients(200);
+      if (Array.isArray(data) && data.length > 0) {
+        setPatientList(data);
+      }
+    } catch (e) {
+      console.warn("Could not fetch patients from hospitalApi:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (patients && patients.length > 0) {
+      setPatientList(patients);
+    } else {
+      fetchLivePatients();
+    }
   }, [patients]);
 
-  const filteredPatients = patientList.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.phone.includes(searchQuery) ||
-    p.mrn.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredPatients = patientList.filter(p => {
+    const q = searchQuery.toLowerCase();
+    const pName = (p.name || p.full_name || '').toLowerCase();
+    const pPhone = p.phone || '';
+    const pMrn = (p.mrn || '').toLowerCase();
+    const pCnic = (p.cnic || '').toLowerCase();
+    return pName.includes(q) || pPhone.includes(q) || pMrn.includes(q) || pCnic.includes(q);
+  });
 
   const handleCreatePatient = async (e) => {
     e.preventDefault();
     if (!name || !phone) return;
-    const res = await onRegisterPatient({ name, phone, email, skin_type: skinType, allergies });
-    if (res && res.patient) {
-      setPatientList(prev => [res.patient, ...prev]);
+    let created = null;
+    if (onRegisterPatient) {
+      const res = await onRegisterPatient({ name, phone, email, skin_type: skinType, allergies });
+      created = res?.patient || res;
+    } else {
+      try {
+        const dummyCnic = `35202-${Math.floor(1000000 + Math.random() * 9000000)}-1`;
+        const res = await hospitalApi.registerPatient({
+          full_name: name,
+          phone,
+          email,
+          gender: "female",
+          dob: "1995-01-01",
+          cnic: dummyCnic,
+          address: "Registered via PRM Directory",
+          emergency_contact: phone,
+          skin_type: skinType,
+          allergies: allergies || "No known allergies"
+        });
+        created = res;
+      } catch (err) {
+        console.error("Error creating patient in PRM:", err);
+      }
+    }
+
+    if (created) {
+      setPatientList(prev => [created, ...prev]);
     }
     setIsAddPatientOpen(false);
     setName('');
@@ -66,9 +125,13 @@ export default function PatientDirectory({ patients = [], onRedeemSession, onReg
       if (onDeletePatient) {
         await onDeletePatient(patientId);
       } else {
-        await api.deletePatient(patientId);
+        try {
+          await hospitalApi.deletePatient(patientId);
+        } catch (e) {
+          await api.deletePatient(patientId);
+        }
       }
-      setPatientList(prev => prev.filter(p => p.id !== patientId));
+      setPatientList(prev => prev.filter(p => String(p.id) !== String(patientId)));
       alert(`Patient "${patientName}" deleted.`);
     }
   };
@@ -84,17 +147,28 @@ export default function PatientDirectory({ patients = [], onRedeemSession, onReg
           </div>
           <div>
             <h1 className="text-lg font-black text-slate-900 tracking-tight">Patient Records & PRM Directory</h1>
-            <p className="text-xs text-slate-600 font-semibold">Package tracking, wallet balances & visit history</p>
+            <p className="text-xs text-slate-600 font-semibold">Authoritative records across POS, Consultations, and Portal</p>
           </div>
         </div>
 
-        <button
-          onClick={() => setIsAddPatientOpen(true)}
-          className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-slate-900 text-white transition-all shadow"
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>+ Add Patient</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchLivePatients}
+            disabled={loading}
+            className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+            title="Refresh list"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Sync</span>
+          </button>
+          <button
+            onClick={() => setIsAddPatientOpen(true)}
+            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-slate-900 text-white transition-all shadow cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>+ Add Patient</span>
+          </button>
+        </div>
       </div>
 
       {/* Patient Table */}
@@ -105,7 +179,7 @@ export default function PatientDirectory({ patients = [], onRedeemSession, onReg
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
-              placeholder="Search patient by Name, Phone, or MRN ID..."
+              placeholder="Search patient by Name, Phone, CNIC, or MRN ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full glass-input pl-9 text-xs py-2"
@@ -122,24 +196,24 @@ export default function PatientDirectory({ patients = [], onRedeemSession, onReg
               <tr className="border-b border-slate-300 text-slate-700 text-xs font-black bg-slate-100">
                 <th className="py-3 px-3">MRN ID</th>
                 <th className="py-3 px-3">Patient Details</th>
-                <th className="py-3 px-3">Skin Tone</th>
+                <th className="py-3 px-3">Skin & Allergies</th>
                 <th className="py-3 px-3 text-right">Advance Wallet</th>
                 <th className="py-3 px-3 text-right">Remaining Due</th>
-                <th className="py-3 px-3 text-center">Actions</th>
+                <th className="py-3 px-3 text-center">Quick Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {filteredPatients.map((patient) => (
-                <tr key={patient.id} className="hover:bg-slate-100 transition">
+                <tr key={patient.id} className="hover:bg-slate-50 transition">
                   
                   <td className="py-3.5 px-3">
                     <span className="font-mono font-black text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded border border-emerald-300">
-                      {patient.mrn}
+                      {patient.mrn || '0001-08-2026'}
                     </span>
                   </td>
 
                   <td className="py-3.5 px-3">
-                    <div className="font-extrabold text-slate-900 text-sm">{patient.name}</div>
+                    <div className="font-extrabold text-slate-900 text-sm">{patient.name || patient.full_name}</div>
                     <div className="text-xs text-slate-500 flex items-center space-x-1 mt-0.5 font-semibold">
                       <Phone className="w-3.5 h-3.5 text-emerald-600" />
                       <span>{patient.phone}</span>
@@ -148,21 +222,24 @@ export default function PatientDirectory({ patients = [], onRedeemSession, onReg
                   </td>
 
                   <td className="py-3.5 px-3">
-                    <span className="text-xs font-bold text-slate-800">
-                      {patient.skin_type || 'Medium Asian Skin'}
-                    </span>
+                    <div className="text-xs font-bold text-slate-800">
+                      {patient.skin_type || 'Fitzpatrick Type III'}
+                    </div>
+                    <div className="text-[11px] text-slate-500 truncate max-w-xs">
+                      {patient.allergies || 'No known allergies'}
+                    </div>
                   </td>
 
                   <td className="py-3.5 px-3 text-right">
                     <span className="font-mono font-black text-emerald-700">
-                      PKR {(patient.advance_balance || 2000).toLocaleString()}
+                      PKR {parseFloat(patient.advance_balance || 0).toLocaleString()}
                     </span>
                   </td>
 
                   <td className="py-3.5 px-3 text-right">
-                    {patient.current_balance > 0 ? (
+                    {parseFloat(patient.current_balance || 0) > 0 ? (
                       <span className="font-mono font-black text-orange-800 bg-orange-100 px-2 py-0.5 rounded border border-orange-300">
-                        PKR {patient.current_balance?.toLocaleString()} Due
+                        PKR {parseFloat(patient.current_balance).toLocaleString()} Due
                       </span>
                     ) : (
                       <span className="font-mono text-emerald-700 font-bold">
@@ -172,27 +249,51 @@ export default function PatientDirectory({ patients = [], onRedeemSession, onReg
                   </td>
 
                   <td className="py-3.5 px-3 text-center">
-                    <div className="flex items-center justify-center space-x-2">
+                    <div className="flex items-center justify-center space-x-1.5">
+                      
+                      {/* Navigate to POS */}
                       <button
-                        onClick={() => setSelectedPatientForHistory(patient)}
-                        className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-slate-900 text-white transition shadow"
+                        onClick={() => {
+                          onPatientSelected?.(patient.id);
+                          onNavigateTo?.('pos', patient.id);
+                        }}
+                        className="px-2 py-1 bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold transition flex items-center space-x-1 cursor-pointer"
+                        title="Bill in POS Terminal"
                       >
-                        <History className="w-3.5 h-3.5" />
-                        <span>Redeem Sessions</span>
+                        <ShoppingCart className="w-3 h-3" />
+                        <span className="hidden sm:inline">Bill POS</span>
                       </button>
 
+                      {/* Navigate to Doctor Chamber */}
                       <button
-                        onClick={() => setSelectedPatientForGallery(patient)}
-                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-800 border border-slate-300 transition"
-                        title="View Before & After gallery"
+                        onClick={() => {
+                          onPatientSelected?.(patient.id);
+                          onNavigateTo?.('doctor', patient.id);
+                        }}
+                        className="px-2 py-1 bg-teal-50 hover:bg-teal-700 hover:text-white text-teal-800 border border-teal-300 rounded-lg text-xs font-bold transition flex items-center space-x-1 cursor-pointer"
+                        title="Open in Doctor Chamber"
                       >
-                        <ImageIcon className="w-3.5 h-3.5" />
+                        <Stethoscope className="w-3 h-3" />
+                        <span className="hidden sm:inline">Chamber</span>
+                      </button>
+
+                      {/* Navigate to Patient Portal */}
+                      <button
+                        onClick={() => {
+                          onPatientSelected?.(patient.id);
+                          onNavigateTo?.('patient', patient.id);
+                        }}
+                        className="px-2 py-1 bg-indigo-50 hover:bg-indigo-700 hover:text-white text-indigo-800 border border-indigo-300 rounded-lg text-xs font-bold transition flex items-center space-x-1 cursor-pointer"
+                        title="View in Patient Portal"
+                      >
+                        <User className="w-3 h-3" />
+                        <span className="hidden sm:inline">Portal</span>
                       </button>
 
                       {/* Delete Patient Option */}
                       <button
-                        onClick={() => handleDelete(patient.id, patient.name)}
-                        className="p-1.5 rounded-lg bg-rose-100 hover:bg-rose-900 hover:text-white text-rose-800 border border-rose-300 transition"
+                        onClick={() => handleDelete(patient.id, patient.name || patient.full_name)}
+                        className="p-1.5 rounded-lg bg-rose-100 hover:bg-rose-900 hover:text-white text-rose-800 border border-rose-300 transition cursor-pointer"
                         title="Delete patient record"
                       >
                         <Trash2 className="w-3.5 h-3.5" />

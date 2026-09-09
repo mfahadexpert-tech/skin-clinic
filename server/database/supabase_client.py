@@ -119,59 +119,17 @@ class LocalClinicStore:
             }
         ]
 
-        # Initial Patients matching documentation (MRN format: 0001-MM-YYYY)
-        self.customers = [
-            {
-                "id": 1,
-                "mrn": "0001-08-2026",
-                "name": "Ayesha Khan",
-                "phone": "0300-1234567",
-                "email": "ayesha.khan@example.com",
-                "address": "House 12-A, Model Town, Lahore",
-                "skin_type": "Fitzpatrick Type III (Medium, turns brown)",
-                "allergies": "No known allergies. Sensitive to strong AHA peels.",
-                "visit_count": 4,
-                "current_balance": 0.0,      # No dues
-                "advance_balance": 2000.0,   # 2000 PKR Wallet credit
-                "created_at": "2026-08-10T10:00:00"
-            },
-            {
-                "id": 2,
-                "mrn": "0002-08-2026",
-                "name": "Bilal Ahmed",
-                "phone": "0321-9876543",
-                "email": "bilal.ahmed@example.com",
-                "address": "Sector C, Bahria Town, Lahore",
-                "skin_type": "Fitzpatrick Type IV (Olive / Darker Asian)",
-                "allergies": "Sensitive to topical Lidocaine 10%",
-                "visit_count": 2,
-                "current_balance": 4500.0,   # Owes 4,500 PKR
-                "advance_balance": 0.0,
-                "created_at": "2026-08-15T14:30:00"
-            },
-            {
-                "id": 3,
-                "mrn": "0003-08-2026",
-                "name": "Fatima Ali",
-                "phone": "0333-5566778",
-                "email": "fatima.ali@example.com",
-                "address": "Gulberg III, Lahore",
-                "skin_type": "Fitzpatrick Type II (Fair, burns easily)",
-                "allergies": "None",
-                "visit_count": 6,
-                "current_balance": 0.0,
-                "advance_balance": 5000.0,
-                "created_at": "2026-08-20T16:00:00"
-            }
-        ]
+        # Fallback customers if database is unreachable or mocked during testing
+        self._fallback_customers = []
+        self._customers_override = None
 
         # Initial sales history & multi-session tracking
         self.sales = [
             {
                 "id": 1,
                 "invoice_number": "INV-0029",
-                "customer_id": 1,
-                "customer_name": "Ayesha Khan",
+                "customer_id": "pat-01",
+                "customer_name": "Zainab Fatima",
                 "customer_mrn": "0001-08-2026",
                 "doctor_id": 1,
                 "doctor_name": "Dr. Sarah Khan",
@@ -202,9 +160,9 @@ class LocalClinicStore:
             {
                 "id": 2,
                 "invoice_number": "INV-0038",
-                "customer_id": 3,
-                "customer_name": "Fatima Ali",
-                "customer_mrn": "0003-08-2026",
+                "customer_id": "pat-04",
+                "customer_name": "Maryam Siddiqui",
+                "customer_mrn": "0004-08-2026",
                 "doctor_id": 1,
                 "doctor_name": "Dr. Sarah Khan",
                 "token_number": "P-02",
@@ -237,9 +195,9 @@ class LocalClinicStore:
         self.appointments = [
             {
                 "id": 1,
-                "customer_id": 1,
-                "customer_name": "Ayesha Khan",
-                "customer_phone": "0300-1234567",
+                "customer_id": "pat-01",
+                "customer_name": "Zainab Fatima",
+                "customer_phone": "+923011112233",
                 "doctor_id": 1,
                 "doctor_name": "Dr. Sarah Khan",
                 "treatment_name": "Laser Hair Removal (Session 3)",
@@ -248,34 +206,6 @@ class LocalClinicStore:
                 "source": "ai-voice",
                 "status": "confirmed",
                 "notes": "Booked automatically via 24/7 AI Voice Agent."
-            },
-            {
-                "id": 2,
-                "customer_id": 2,
-                "customer_name": "Bilal Ahmed",
-                "customer_phone": "0321-9876543",
-                "doctor_id": 2,
-                "doctor_name": "Dr. Ayesha Tariq",
-                "treatment_name": "PRP Vampire Facial",
-                "appointment_time": "2026-08-31T14:30:00",
-                "duration_minutes": 60,
-                "source": "whatsapp",
-                "status": "confirmed",
-                "notes": "Confirmed via automated WhatsApp notification."
-            },
-            {
-                "id": 3,
-                "customer_id": 3,
-                "customer_name": "Fatima Ali",
-                "customer_phone": "0333-5566778",
-                "doctor_id": 1,
-                "doctor_name": "Dr. Sarah Khan",
-                "treatment_name": "Carbon Laser Peel (Session 2)",
-                "appointment_time": "2026-08-31T16:00:00",
-                "duration_minutes": 30,
-                "source": "walk-in",
-                "status": "confirmed",
-                "notes": "Bridal package redemption."
             }
         ]
 
@@ -291,6 +221,113 @@ class LocalClinicStore:
 
         self.token_counter = 5
         self.invoice_counter = 42
+
+    @property
+    def customers(self) -> List[Dict[str, Any]]:
+        """Dynamically retrieves authoritative patient records from hospital SQLite database."""
+        if self._customers_override is not None:
+            return self._customers_override
+
+        try:
+            from database.hospital_db import get_db_connection
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, user_id, full_name, phone, email, gender, dob, cnic, address, emergency_contact,
+                       whatsapp_available, mrn, skin_type, allergies, advance_balance, current_balance, visit_count, created_at
+                FROM patients
+                ORDER BY created_at ASC
+            """)
+            rows = cursor.fetchall()
+            conn.close()
+            db_patients = []
+            for r in rows:
+                p = dict(r)
+                p["name"] = p["full_name"]
+                if not p.get("mrn"):
+                    p["mrn"] = f"{p['id'][-4:] if len(p['id'])>=4 else '0001'}-08-2026"
+                db_patients.append(p)
+            if db_patients:
+                return db_patients
+        except Exception as e:
+            logger.warning(f"[SUPABASE] Could not read from hospital_db: {e}")
+        return self._fallback_customers
+
+    @customers.setter
+    def customers(self, val: List[Dict[str, Any]]):
+        self._customers_override = val
+
+    def get_patient_by_id(self, patient_id: Any) -> Optional[Dict[str, Any]]:
+        """Lookup patient by string ID (pat-01), MRN, or int index."""
+        pid_str = str(patient_id)
+        for c in self.customers:
+            if str(c.get("id")) == pid_str or str(c.get("mrn")) == pid_str:
+                return c
+        # fallback index lookup
+        try:
+            idx = int(patient_id) - 1
+            if 0 <= idx < len(self.customers):
+                return self.customers[idx]
+        except (ValueError, TypeError):
+            pass
+        return None
+
+    def get_doctor_by_id(self, doctor_id: Any) -> Optional[Dict[str, Any]]:
+        did_str = str(doctor_id)
+        for d in self.employees:
+            if str(d.get("id")) == did_str or d.get("name") == did_str:
+                return d
+        return self.employees[0] if self.employees else None
+
+    def list_appointments(self) -> List[Dict[str, Any]]:
+        """Combines SQLite appointments with calendar appointments."""
+        try:
+            from database.hospital_db import get_db_connection
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT a.id, a.patient_id, a.doctor_id, a.service_id, a.appointment_date, a.token_number, a.status,
+                       a.booking_source, a.created_at,
+                       p.full_name AS customer_name, p.phone AS customer_phone, p.mrn AS customer_mrn,
+                       d.full_name AS doctor_name, s.name AS treatment_name,
+                       q.queue_status
+                FROM appointments a
+                JOIN patients p ON a.patient_id = p.id
+                JOIN doctors d ON a.doctor_id = d.id
+                JOIN services s ON a.service_id = s.id
+                LEFT JOIN queue_entries q ON a.id = q.appointment_id
+                ORDER BY a.appointment_date DESC, a.token_number ASC
+            """)
+            db_appts = []
+            for r in cursor.fetchall():
+                row = dict(r)
+                db_appts.append({
+                    "id": row["id"],
+                    "customer_id": row["patient_id"],
+                    "customer_name": row["customer_name"],
+                    "customer_phone": row["customer_phone"],
+                    "customer_mrn": row.get("customer_mrn") or "0001-08-2026",
+                    "doctor_id": row["doctor_id"],
+                    "doctor_name": row["doctor_name"],
+                    "treatment_name": row["treatment_name"],
+                    "appointment_time": f"{row['appointment_date']}T09:00:00",
+                    "duration_minutes": 45,
+                    "token_number": row["token_number"],
+                    "source": row.get("booking_source") or "reception",
+                    "status": row["status"],
+                    "queue_status": row.get("queue_status") or "not_checked_in",
+                    "notes": f"Token #{row['token_number']} - {row['status'].upper()}"
+                })
+            conn.close()
+            if db_appts:
+                return db_appts
+        except Exception as e:
+            logger.warning(f"[SUPABASE] Could not read appointments from hospital_db: {e}")
+        return self.appointments
+
+    def add_appointment(self, appt_data: Dict[str, Any]) -> Dict[str, Any]:
+        self.appointments.append(appt_data)
+        return appt_data
 
     def get_next_token(self) -> str:
         """Generates the next waiting lounge queue token (e.g. P-06)"""
@@ -311,3 +348,8 @@ class LocalClinicStore:
 
 # Instantiate singleton local store
 clinic_store = LocalClinicStore()
+
+
+def get_clinic_store() -> LocalClinicStore:
+    """Returns the singleton clinic store."""
+    return clinic_store

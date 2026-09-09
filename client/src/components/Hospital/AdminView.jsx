@@ -332,10 +332,14 @@ export default function AdminView() {
       const res = await hospitalApi.registerPatient(patientForm);
       showNotification("success", `Patient ${patientForm.full_name} registered successfully!`);
       setShowAddPatientModal(false);
-      if (res && res.patient) {
-        setPatients(prev => [res.patient, ...prev]);
+      const newPat = res?.patient || res;
+      if (newPat && (newPat.id || newPat.patient_id)) {
+        setPatients(prev => [newPat, ...prev]);
       }
       loadAdminData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("hospital_patients_updated", { detail: newPat }));
+      }
     } catch (err) {
       showNotification("error", err.message || "Failed to register patient");
     }
@@ -350,6 +354,9 @@ export default function AdminView() {
       setShowEditPatientModal(false);
       setPatients(prev => prev.map(p => p.id === selectedPatient.id ? { ...p, ...patientForm } : p));
       loadAdminData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("hospital_patients_updated", { detail: { id: selectedPatient.id, ...patientForm } }));
+      }
     } catch (err) {
       showNotification("error", err.message || "Failed to update patient");
     }
@@ -362,6 +369,9 @@ export default function AdminView() {
       showNotification("success", `Patient ${pat.full_name} removed.`);
       setPatients(prev => prev.filter(p => p.id !== pat.id));
       loadAdminData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("hospital_patients_updated", { detail: { deletedId: pat.id } }));
+      }
     } catch (err) {
       showNotification("error", err.message || "Failed to delete patient");
     }

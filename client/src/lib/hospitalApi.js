@@ -170,6 +170,26 @@ export const hospitalApi = {
       }),
     }),
 
+  // Patient Treatment Packages & Multi-Session Tracking (Doctor Exclusive Authority)
+  getPatientPackages: (patientId, doctorId = null) => 
+    request(`/patients/${encodeURIComponent(patientId)}/packages${doctorId ? `?doctor_id=${encodeURIComponent(doctorId)}` : ""}`),
+  createPatientPackage: (patientId, packageData, callerRole = "doctor") =>
+    request(`/patients/${encodeURIComponent(patientId)}/packages?caller_role=${encodeURIComponent(callerRole)}`, {
+      method: "POST",
+      body: JSON.stringify(packageData),
+    }),
+  updatePatientPackage: (patientId, packageId, packageData, callerRole = "doctor") =>
+    request(`/patients/${encodeURIComponent(patientId)}/packages/${encodeURIComponent(packageId)}?caller_role=${encodeURIComponent(callerRole)}`, {
+      method: "PUT",
+      body: JSON.stringify(packageData),
+    }),
+  consumePackageSession: (patientId, packageId, itemId, consumeData, callerRole = "doctor") =>
+    request(`/patients/${encodeURIComponent(patientId)}/packages/${encodeURIComponent(packageId)}/consume-session/${encodeURIComponent(itemId)}?caller_role=${encodeURIComponent(callerRole)}`, {
+      method: "POST",
+      body: JSON.stringify(consumeData),
+    }),
+  getPackageById: (packageId) => request(`/packages/${encodeURIComponent(packageId)}`),
+
   // Admin Stats & Audit
   getAdminStats: () => request("/admin/stats"),
   getSystemAuditLogs: (limit = 50) => request(`/admin/audit-logs?limit=${limit}`),

@@ -3,7 +3,7 @@ import {
   Calendar, Clock, Bot, FileText, CreditCard, Bell, User, CheckCircle2, 
   AlertCircle, ShieldCheck, ArrowRight, ChevronRight, XCircle, Search, 
   Sparkles, UserPlus, Users, Phone, MapPin, RefreshCw, X, Stethoscope,
-  Activity, Pill, HeartPulse, Check
+  Activity, Pill, HeartPulse, Check, Package, Lock
 } from "lucide-react";
 import { hospitalApi } from "../../lib/hospitalApi";
 import { TokenBadge, StatusBadge, PrescriptionViewer } from "./SharedComponents";
@@ -62,7 +62,7 @@ const DEFAULT_REGISTERED_PATIENTS = [
   { id: "pat-05", full_name: "Usman Sheikh", phone: "+923055556677", email: "usman@gmail.com", gender: "male", dob: "1988-04-18", cnic: "35202-5566778-5", address: "Sector G-11/3, Islamabad", emergency_contact: "+923055556600" }
 ];
 
-export default function PatientPortal({ patientId = "pat-01", onPatientChange, onOpenAI }) {
+export default function PatientPortal({ patientId = "pat-01", onPatientChange, onOpenAI, onNavigateTo }) {
   // Active Patient State
   const [activePatient, setActivePatient] = useState(DEFAULT_REGISTERED_PATIENTS[0]);
   const [allPatients, setAllPatients] = useState(DEFAULT_REGISTERED_PATIENTS);
@@ -98,6 +98,8 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
   const [services, setServices] = useState(DEFAULT_AESTHETIC_SERVICES);
   const [doctorServices, setDoctorServices] = useState([]);
   const [loadingServices, setLoadingServices] = useState(false);
+  const [packages, setPackages] = useState([]);
+  const [loadingPackages, setLoadingPackages] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
 
@@ -154,12 +156,15 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
   // Load All Patients from DB or fallback
   const loadPatientsList = async () => {
     try {
-      const pList = await hospitalApi.listPatients(100);
+      const pList = await hospitalApi.listPatients(200);
       if (pList && Array.isArray(pList) && pList.length > 0) {
         setAllPatients(pList);
-        const match = pList.find(p => p.id === patientId);
+        const currentTargetId = patientId || activePatient?.id;
+        const match = pList.find(p => p.id === currentTargetId);
         if (match) {
           setActivePatient(match);
+        } else if (!activePatient) {
+          setActivePatient(pList[0]);
         }
       }
     } catch (err) {
@@ -171,33 +176,48 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
   const loadPatientData = async (targetId = activePatient?.id) => {
     if (!targetId) return;
     setLoading(true);
+    setLoadingPackages(true);
     try {
-      const [appts, records, fin, docList, srvList] = await Promise.all([
+      const [appts, records, fin, docList, srvList, pkgList] = await Promise.all([
         hospitalApi.getPatientAppointments(targetId).catch(() => []),
         hospitalApi.getPatientClinicalRecords(targetId, "patient", targetId).catch(() => []),
         hospitalApi.getPatientFinancialSummary(targetId).catch(() => null),
         hospitalApi.getDoctors().catch(() => DEFAULT_AESTHETIC_DOCTORS),
-        hospitalApi.getServices().catch(() => DEFAULT_AESTHETIC_SERVICES)
+        hospitalApi.getServices().catch(() => DEFAULT_AESTHETIC_SERVICES),
+        hospitalApi.getPatientPackages(targetId).catch(() => [])
       ]);
       setAppointments(appts || []);
       setClinicalRecords(records || []);
       setFinancials(fin);
+      setPackages(pkgList || []);
       if (docList && docList.length > 0) setDoctors(docList);
       if (srvList && srvList.length > 0) setServices(srvList);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+      setLoadingPackages(false);
     }
   };
 
   useEffect(() => {
     loadPatientsList();
+    const handlePatientsUpdated = () => {
+      loadPatientsList();
+    };
+    window.addEventListener("hospital_patients_updated", handlePatientsUpdated);
+    return () => window.removeEventListener("hospital_patients_updated", handlePatientsUpdated);
   }, []);
 
   useEffect(() => {
-    loadPatientData(patientId);
-  }, [patientId]);
+    if (patientId) {
+      if (allPatients.length > 0) {
+        const match = allPatients.find(p => p.id === patientId);
+        if (match) setActivePatient(match);
+      }
+      loadPatientData(patientId);
+    }
+  }, [patientId, allPatients.length]);
 
   // Close search suggestions dropdown on outside click
   useEffect(() => {
@@ -223,13 +243,16 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
     const q = val.toLowerCase().trim();
     const localMatches = allPatients.filter(p =>
       (p.full_name || "").toLowerCase().includes(q) ||
+      (p.name || "").toLowerCase().includes(q) ||
       (p.phone || "").includes(q) ||
-      (p.cnic || "").includes(q) ||
+      (p.cnic || "").toLowerCase().includes(q) ||
+      (p.mrn || "").toLowerCase().includes(q) ||
+      (p.email || "").toLowerCase().includes(q) ||
       (p.id || "").toLowerCase().includes(q)
     );
     setSearchResults(localMatches);
 
-    // Also attempt remote search API
+    // Also query remote search API
     try {
       const remoteMatches = await hospitalApi.searchPatients(val.trim());
       if (remoteMatches && Array.isArray(remoteMatches)) {
@@ -253,8 +276,11 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
       const q = val.toLowerCase().trim();
       const match = allPatients.find(p =>
         (p.full_name || "").toLowerCase().includes(q) ||
+        (p.name || "").toLowerCase().includes(q) ||
         (p.phone || "").includes(q) ||
-        (p.cnic || "").includes(q) ||
+        (p.cnic || "").toLowerCase().includes(q) ||
+        (p.mrn || "").toLowerCase().includes(q) ||
+        (p.email || "").toLowerCase().includes(q) ||
         (p.id || "").toLowerCase() === q
       );
       if (match) {
@@ -290,7 +316,7 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
     loadPatientData(p.id);
     setToast({ 
       type: "success", 
-      text: `Loaded previous doctor checkup records for ${p.full_name} (${p.id}).` 
+      text: `Loaded previous doctor checkup records for ${p.full_name || p.name} (${p.id}).` 
     });
   };
 
@@ -369,17 +395,26 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
     }
   };
 
-  // Generic Book Appointment Handler (Anyone can book!)
-  const handleStartBooking = (initialDoc = null, initialSrv = null) => {
+  // Generic & Registered Patient Book Appointment Handler
+  const handleStartBooking = (initialDoc = null, initialSrv = null, targetPatient = null) => {
     const doc = initialDoc || selectedDoctor || doctors[0] || DEFAULT_AESTHETIC_DOCTORS[0];
+    const pat = targetPatient || activePatient;
+    if (pat) {
+      setActivePatient(pat);
+      if (onPatientChange) onPatientChange(pat.id);
+      loadPatientData(pat.id);
+    }
     setSelectedDoctor(doc);
     setBookingStep(1);
     setBookingResult(null);
     setBookingPatientForm({
-      full_name: activePatient ? activePatient.full_name : "",
-      phone: activePatient ? activePatient.phone : "",
-      gender: activePatient ? (activePatient.gender || "female") : "female",
-      email: activePatient ? (activePatient.email || "") : "",
+      patient_id: pat ? pat.id : undefined,
+      full_name: pat ? (pat.full_name || pat.name || "") : "",
+      phone: pat ? (pat.phone || "") : "",
+      gender: pat ? (pat.gender || "female") : "female",
+      email: pat ? (pat.email || "") : "",
+      cnic: pat ? (pat.cnic || "") : "",
+      mrn: pat ? (pat.mrn || "") : "",
       notes: ""
     });
     setShowBookingModal(true);
@@ -398,6 +433,7 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
 
   const handleSubmitBooking = async () => {
     if (!selectedDoctor || !selectedService) return;
+    const patId = bookingPatientForm.patient_id || activePatient?.id;
     const name = (bookingPatientForm.full_name || activePatient?.full_name || "").trim();
     const phone = (bookingPatientForm.phone || activePatient?.phone || "").trim();
     if (!name || !phone) {
@@ -407,7 +443,7 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
 
     try {
       const res = await hospitalApi.createBookingRequest({
-        patient_id: activePatient?.id,
+        patient_id: patId,
         patient_name: name,
         patient_phone: phone,
         patient_email: bookingPatientForm.email.trim() || undefined,
@@ -423,8 +459,9 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
       
       // If new patient was registered dynamically, reload list
       loadPatientsList();
-      if (res.patient_id) {
-        loadPatientData(res.patient_id);
+      const targetId = res.patient_id || patId;
+      if (targetId) {
+        loadPatientData(targetId);
       }
     } catch (err) {
       setToast({ type: "error", text: err.message });
@@ -461,7 +498,16 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
     }));
   };
 
-  const upcomingAppt = appointments.find(a => a.status === "confirmed" || a.status === "pending");
+  // Prioritize active in-consultation / called / waiting live queue token over future dates
+  const todayStr = new Date().toISOString().split("T")[0];
+  const upcomingAppt = (
+    appointments.find(a => ["in_consultation", "called", "waiting"].includes(a.queue_status)) ||
+    appointments.find(a => a.appointment_date === todayStr && a.status === "confirmed") ||
+    appointments.find(a => a.status === "confirmed" && a.appointment_date >= todayStr) ||
+    appointments.find(a => a.status === "confirmed") ||
+    appointments.find(a => a.status === "pending") ||
+    appointments[0]
+  );
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -589,14 +635,14 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
 
           {/* DYNAMIC SUGGESTIONS DROPDOWN (Displays as user types, not already on screen) */}
           {showSearchDropdown && searchQuery.trim().length > 0 && (
-            <div className="absolute top-full left-0 right-0 z-50 mt-2 bg-white rounded-2xl border-2 border-[#253237] shadow-2xl overflow-hidden max-h-80 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95">
+            <div className="absolute top-full left-0 right-0 z-50 mt-2 bg-white rounded-2xl border-2 border-[#253237] shadow-2xl overflow-hidden max-h-96 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95">
               <div className="p-3 bg-[#E0FBFC] border-b border-[#9DB4C0] flex items-center justify-between text-xs text-[#253237]">
                 <span className="font-bold">
                   {searchResults.length > 0 
-                    ? `Matching Patient Records (${searchResults.length})` 
+                    ? `Matching Registered Patients (${searchResults.length})` 
                     : "No Exact Patient Match"}
                 </span>
-                <span className="text-[11px] text-[#5C6B73]">Click a suggestion to load medical records</span>
+                <span className="text-[11px] text-[#5C6B73]">Click "Book Appointment" to schedule immediately</span>
               </div>
 
               {searchResults.length > 0 ? (
@@ -605,18 +651,23 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
                     <div
                       key={p.id}
                       onClick={() => handleSelectPatient(p)}
-                      className="p-3.5 hover:bg-[#E0FBFC]/50 cursor-pointer transition-colors flex items-center justify-between gap-3 group"
+                      className="p-3.5 hover:bg-[#E0FBFC]/50 cursor-pointer transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-[#253237] text-white flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-teal-900 transition-colors">
-                          {p.full_name?.split(" ")[0]?.[0] || "P"}
+                        <div className="w-10 h-10 rounded-xl bg-[#253237] text-white flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-teal-900 transition-colors shadow-xs">
+                          {(p.full_name || p.name || "P").split(" ")[0]?.[0] || "P"}
                         </div>
                         <div>
-                          <div className="font-extrabold text-sm text-[#253237] flex items-center gap-2">
-                            <span>{p.full_name}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-[#5C6B73] border font-semibold">
-                              {p.id}
+                          <div className="font-extrabold text-sm text-[#253237] flex items-center gap-2 flex-wrap">
+                            <span>{p.full_name || p.name}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-[#5C6B73] border font-bold">
+                              {p.mrn ? `MRN: ${p.mrn}` : p.id}
                             </span>
+                            {activePatient?.id === p.id && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-600 text-white font-bold">
+                                Active
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-[#5C6B73] mt-0.5 flex items-center gap-3 flex-wrap">
                             <span>📞 {p.phone}</span>
@@ -626,10 +677,30 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
                         </div>
                       </div>
 
-                      <span className="text-xs font-bold text-[#253237] group-hover:text-teal-900 group-hover:translate-x-0.5 transition-all flex items-center gap-1 shrink-0">
-                        <span>Load Checkups</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowSearchDropdown(false);
+                            handleStartBooking(null, null, p);
+                          }}
+                          className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          title={`Book appointment directly for ${p.full_name || p.name}`}
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>Book Appointment</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectPatient(p);
+                          }}
+                          className="btn-secondary text-xs px-2.5 py-1.5 flex items-center gap-1 cursor-pointer"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>Records</span>
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -671,6 +742,142 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
       </div>
 
       {/* ========================================================================= */}
+      {/* REGISTERED PATIENTS DIRECTORY (Admin & Staff Synchronized)                 */}
+      {/* ========================================================================= */}
+      <div className="bg-white p-6 rounded-2xl border border-[#9DB4C0] shadow-sm space-y-4 animate-in fade-in">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#C2DFE3] pb-3.5">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-[#253237] text-[#E0FBFC] shadow-sm">
+              <Users className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base sm:text-lg font-black text-[#253237]">
+                  Registered Patients Directory
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full bg-[#E0FBFC] text-[#253237] border border-[#9DB4C0] text-xs font-black">
+                  {allPatients.length} Registered
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-bold flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" /> Live Synced with Admin
+                </span>
+              </div>
+              <p className="text-xs text-[#5C6B73] mt-0.5">
+                Patients registered by hospital admin or reception desk. Click <strong>"Book Appointment"</strong> to schedule directly without re-entering details.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-center">
+            <button
+              onClick={() => {
+                loadPatientsList();
+                setToast({ type: "success", text: "Refreshed live registered patients list from database." });
+              }}
+              className="p-2 rounded-xl border border-[#9DB4C0] hover:bg-[#E0FBFC] text-[#253237] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Refresh registered patients list from database"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Refresh</span>
+            </button>
+            <button
+              onClick={() => {
+                setShowRegisterModal(true);
+              }}
+              className="btn-secondary text-xs px-3 py-2 cursor-pointer flex items-center gap-1.5"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>+ Add Patient</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Registered Patients Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
+          {allPatients.map((p) => {
+            const isCurrentActive = activePatient?.id === p.id;
+            return (
+              <div
+                key={p.id}
+                className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-3 ${
+                  isCurrentActive 
+                    ? "bg-[#E0FBFC]/40 border-[#253237] shadow-sm ring-1 ring-[#253237]" 
+                    : "bg-slate-50/70 border-[#9DB4C0] hover:border-[#253237] hover:bg-white"
+                }`}
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-[#253237] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
+                        {(p.full_name || p.name || "P").split(" ")[0]?.[0] || "P"}
+                      </div>
+                      <div>
+                        <h4 className="font-extrabold text-sm text-[#253237] leading-snug flex items-center gap-1.5">
+                          <span>{p.full_name || p.name}</span>
+                          {isCurrentActive && (
+                            <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-emerald-600 text-white">
+                              Active
+                            </span>
+                          )}
+                        </h4>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white text-[#5C6B73] border border-slate-200 font-bold">
+                            {p.mrn ? `MRN: ${p.mrn}` : p.id}
+                          </span>
+                          <span className="text-[10px] text-[#5C6B73] capitalize font-medium">
+                            {p.gender || "female"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 text-xs text-[#5C6B73] space-y-1 bg-white/80 p-2.5 rounded-lg border border-[#C2DFE3]">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <Phone className="w-3.5 h-3.5 text-[#253237] shrink-0" />
+                      <span className="font-semibold text-[#253237]">{p.phone}</span>
+                    </div>
+                    {p.cnic && (
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="font-bold text-[10px] text-[#5C6B73]">CNIC:</span>
+                        <span className="text-[#253237]">{p.cnic}</span>
+                      </div>
+                    )}
+                    {p.address && (
+                      <div className="flex items-center gap-1.5 truncate text-[11px]">
+                        <MapPin className="w-3 h-3 text-[#5C6B73] shrink-0" />
+                        <span className="truncate">{p.address}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1 border-t border-[#C2DFE3]/70">
+                  <button
+                    onClick={() => handleStartBooking(null, null, p)}
+                    className="btn-primary text-xs flex-1 py-2 flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                    title={`Book appointment directly for ${p.full_name || p.name}`}
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>Book Appointment</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleSelectPatient(p)}
+                    className="btn-secondary text-xs px-2.5 py-2 cursor-pointer flex items-center gap-1"
+                    title="View medical records and checkup history"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Records</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
       {/* ACTIVE APPOINTMENT & QUEUE STATUS                                         */}
       {/* ========================================================================= */}
       {upcomingAppt && (
@@ -679,14 +886,16 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
             <TokenBadge tokenNumber={upcomingAppt.token_number} status={upcomingAppt.status} size="lg" />
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs uppercase font-bold text-[#5C6B73] tracking-widest">Next Appointment</span>
-                <StatusBadge status={upcomingAppt.status} />
+                <span className="text-xs uppercase font-bold text-[#5C6B73] tracking-widest">
+                  {upcomingAppt.queue_status === "in_consultation" ? "Live Chamber Consultation" : "Next Appointment"}
+                </span>
+                <StatusBadge status={upcomingAppt.queue_status === "in_consultation" ? "in_consultation" : upcomingAppt.status} />
                 <span className="text-xs text-[#5C6B73]">For: <strong className="text-[#253237]">{upcomingAppt.patient_name || activePatient.full_name}</strong></span>
               </div>
               <h3 className="text-xl font-black text-[#253237] mt-1">{upcomingAppt.doctor_name}</h3>
               <p className="text-xs text-[#5C6B73]">{upcomingAppt.service_name} • Date: {upcomingAppt.appointment_date}</p>
               <div className="mt-2 text-xs font-semibold text-teal-800 bg-[#E0FBFC] px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 border border-[#9DB4C0]">
-                <Clock className="w-3.5 h-3.5" /> Queue Status: <strong>{upcomingAppt.queue_status || "Awaiting Receptionist Approval"}</strong>
+                <Clock className="w-3.5 h-3.5" /> Queue Status: <strong>{upcomingAppt.queue_status === "in_consultation" ? "In Active Consultation with Doctor" : (upcomingAppt.queue_status || "Awaiting Receptionist Approval")}</strong>
               </div>
             </div>
           </div>
@@ -701,12 +910,14 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
               </button>
             )}
 
-            <button
-              onClick={() => handleCancelAppt(upcomingAppt.id)}
-              className="px-4 py-2.5 rounded-xl border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs sm:text-sm font-bold transition-all cursor-pointer"
-            >
-              Cancel Appointment
-            </button>
+            {upcomingAppt.queue_status !== "in_consultation" && upcomingAppt.queue_status !== "completed" && (
+              <button
+                onClick={() => handleCancelAppt(upcomingAppt.id)}
+                className="px-4 py-2.5 rounded-xl border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs sm:text-sm font-bold transition-all cursor-pointer"
+              >
+                Cancel Appointment
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -718,6 +929,135 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
         
         {/* Left Column: Doctor Checkups & Clinical Records (8 Cols) */}
         <div className="lg:col-span-8 space-y-6">
+
+          {/* DOCTOR-PRESCRIBED TREATMENT PACKAGES & MULTI-SESSION PROGRESS (READ-ONLY) */}
+          <div className="bg-white rounded-2xl border border-[#9DB4C0] p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#C2DFE3] pb-3">
+              <div className="flex items-center gap-2">
+                <Package className="w-5 h-5 text-[#253237]" />
+                <h3 className="font-black text-base text-[#253237]">
+                  Doctor-Prescribed Treatment Packages & Multi-Session Plans
+                </h3>
+              </div>
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-[#253237] border border-slate-300 self-start sm:self-center">
+                <Lock className="w-3.5 h-3.5 text-slate-500" /> Prescribed by Physician • Strictly Read-Only
+              </span>
+            </div>
+
+            <p className="text-xs text-[#5C6B73]">
+              Custom combination treatment plans formulated specifically for you by your attending physician. Multi-session procedures are scheduled and marked as completed during each of your visits.
+            </p>
+
+            {loadingPackages ? (
+              <div className="py-8 text-center text-xs text-[#5C6B73]">
+                <RefreshCw className="w-5 h-5 animate-spin text-[#253237] mx-auto mb-1.5" />
+                Loading your prescribed packages...
+              </div>
+            ) : packages.length === 0 ? (
+              <div className="p-5 bg-slate-50 rounded-xl border border-dashed border-[#9DB4C0] text-center space-y-1.5">
+                <Package className="w-8 h-8 text-[#9DB4C0] mx-auto opacity-70 mb-1" />
+                <p className="text-xs font-bold text-[#253237]">No active multi-session combination packages on record.</p>
+                <p className="text-xs text-[#5C6B73]">
+                  Your doctor will formulate and adjust personalized multi-session combination packages during your clinic consultation.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {packages.map(pkg => (
+                  <div key={pkg.id} className="p-4 rounded-xl border border-[#9DB4C0] bg-slate-50 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#C2DFE3] pb-2.5">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-black text-sm text-[#253237]">{pkg.package_name}</h4>
+                          <StatusBadge status={pkg.status} />
+                        </div>
+                        <p className="text-xs text-[#5C6B73] mt-0.5">
+                          Prescribed by <strong>{pkg.doctor_name || "Attending Physician"}</strong> • Plan Total:{" "}
+                          <strong className="text-[#253237]">
+                            PKR {Number(pkg.final_price ?? pkg.total_price).toLocaleString()}
+                          </strong>
+                          {Number(pkg.discount_amount || 0) > 0 && (
+                            <span className="ml-1.5 text-[11px] text-emerald-800 font-semibold">
+                              (Catalog PKR {Number(pkg.total_price).toLocaleString()} - Discount PKR {Number(pkg.discount_amount).toLocaleString()})
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <span className="text-[11px] text-[#5C6B73] font-semibold">
+                        Plan ID: #{pkg.id.slice(-6)}
+                      </span>
+                    </div>
+
+                    {pkg.clinical_notes && (
+                      <div className="p-2.5 bg-teal-50 rounded-lg border border-teal-200 text-teal-900 text-xs">
+                        <strong className="block mb-0.5">Doctor's Clinical Instructions:</strong>
+                        <span>{pkg.clinical_notes}</span>
+                      </div>
+                    )}
+
+                    {/* Package Procedures Sessions Progress */}
+                    <div className="space-y-2.5 pt-1">
+                      <div className="text-xs font-bold uppercase tracking-wider text-[#5C6B73]">
+                        Combination Procedures & Session Tracking
+                      </div>
+                      <div className="space-y-2">
+                        {(pkg.items || []).map(item => {
+                          const total = item.sessions_total || 1;
+                          const used = item.sessions_used || 0;
+                          const remaining = Math.max(0, total - used);
+                          const pct = Math.min(100, Math.round((used / total) * 100));
+                          const isDone = used >= total;
+
+                          return (
+                            <div key={item.id} className="p-3 bg-white rounded-lg border border-[#C2DFE3] space-y-2">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-1">
+                                <div>
+                                  <span className="font-bold text-[#253237]">{item.service_name}</span>
+                                  <span className="text-[#5C6B73] ml-2 font-medium text-[11px]">
+                                    (PKR {item.unit_price?.toLocaleString()} / session)
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded ${
+                                    isDone ? 'bg-emerald-100 text-emerald-800' : 'bg-[#E0FBFC] text-[#253237]'
+                                  }`}>
+                                    {used} / {total} sessions completed
+                                  </span>
+                                  {remaining > 0 ? (
+                                    <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                      {remaining} left
+                                    </span>
+                                  ) : (
+                                    <span className="text-[11px] font-bold text-emerald-700">✓ All Done</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Progress bar */}
+                              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full transition-all duration-500 ${
+                                    isDone ? "bg-emerald-500" : "bg-[#253237]"
+                                  }`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-[#C2DFE3] flex items-center justify-between text-[11px] text-[#5C6B73]">
+                      <span>Notice: Individual sessions are marked served by the doctor during in-person visits.</span>
+                      <span className="font-semibold text-[#253237]">Managed by Doctor</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="bg-white rounded-2xl border border-[#9DB4C0] p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-[#C2DFE3] pb-3">
               <div className="flex items-center gap-2">
@@ -813,23 +1153,38 @@ export default function PatientPortal({ patientId = "pat-01", onPatientChange, o
 
             <div className="space-y-3 text-xs">
               <div className="flex justify-between items-center py-2 border-b border-[#C2DFE3]">
+                <span className="text-[#5C6B73] font-medium">Advance Wallet Credit:</span>
+                <span className="font-black text-emerald-700 text-sm">
+                  PKR {Number(financials?.advance_balance ?? activePatient?.advance_balance ?? 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-[#C2DFE3]">
                 <span className="text-[#5C6B73] font-medium">Total Billed:</span>
                 <span className="font-black text-[#253237] text-sm">
-                  PKR {Number(financials?.total_billed || 2500).toLocaleString()}
+                  PKR {Number(financials?.total_billed ?? 0).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-[#C2DFE3]">
                 <span className="text-[#5C6B73] font-medium">Total Paid:</span>
                 <span className="font-black text-emerald-800 text-sm">
-                  PKR {Number(financials?.total_paid || 2500).toLocaleString()}
+                  PKR {Number(financials?.total_paid ?? 0).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between items-center py-2 bg-slate-50 p-3 rounded-xl border border-[#C2DFE3]">
                 <span className="font-bold text-[#253237]">Outstanding Dues:</span>
-                <span className="font-black text-rose-700 text-sm">
-                  PKR {Number(financials?.outstanding_balance || 0).toLocaleString()}
+                <span className={`font-black text-sm ${Number(financials?.outstanding_due ?? financials?.outstanding_balance ?? financials?.current_balance ?? activePatient?.current_balance ?? 0) > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                  PKR {Number(financials?.outstanding_due ?? financials?.outstanding_balance ?? financials?.current_balance ?? activePatient?.current_balance ?? 0).toLocaleString()}
                 </span>
               </div>
+              {onNavigateTo && (
+                <button
+                  type="button"
+                  onClick={() => onNavigateTo("pos", activePatient?.id)}
+                  className="w-full mt-2 py-2.5 px-3 bg-[#253237] hover:bg-[#1b2428] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <CreditCard className="w-3.5 h-3.5 text-[#E0FBFC]" /> Settle / Bill via POS Terminal
+                </button>
+              )}
             </div>
           </div>
 

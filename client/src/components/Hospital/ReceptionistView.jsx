@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { 
   Users, Calendar, Clock, CheckCircle2, XCircle, Search, UserPlus, 
   CreditCard, ShieldAlert, AlertTriangle, RefreshCw, Phone, UserCheck, 
-  ArrowRight, DollarSign, FileText, Activity
+  ArrowRight, DollarSign, FileText, Activity, ShoppingCart, Package, Lock
 } from "lucide-react";
 import { hospitalApi } from "../../lib/hospitalApi";
 import { TokenBadge, StatusBadge, ConfirmationModal } from "./SharedComponents";
@@ -29,7 +29,7 @@ const DEFAULT_AESTHETIC_DOCTORS = [
   { id: "doc-02", full_name: "Dr. Sarah Khan", specialization: "Aesthetic Physician & Trichologist", consultation_fee: 2000 }
 ];
 
-export default function ReceptionistView({ onPatientSelected }) {
+export default function ReceptionistView({ onPatientSelected, onNavigateTo }) {
   const [stats, setStats] = useState(null);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [liveQueue, setLiveQueue] = useState([]);
@@ -62,13 +62,16 @@ export default function ReceptionistView({ onPatientSelected }) {
   });
   const [duplicateWarning, setDuplicateWarning] = useState(null);
 
-  // Form states for Direct Walk-in Appointment
+  // Form states for Direct Walk-in Appointment (Strictly filtered by Doctor)
   const [walkinForm, setWalkinForm] = useState({
     patient_id: "",
     doctor_id: "doc-01",
     service_id: "srv-01",
     appointment_date: new Date().toISOString().split("T")[0],
   });
+  const [doctorSpecificServices, setDoctorSpecificServices] = useState([]);
+  const [selectedPatientPackages, setSelectedPatientPackages] = useState([]);
+  const [loadingPatientPackages, setLoadingPatientPackages] = useState(false);
 
   // Payment Form
   const [paymentForm, setPaymentForm] = useState({
@@ -80,6 +83,20 @@ export default function ReceptionistView({ onPatientSelected }) {
 
   const [queueDateFilter, setQueueDateFilter] = useState("all"); // "all", "today", "tomorrow", or "YYYY-MM-DD"
 
+  const handleDoctorChangeInWalkin = async (docId) => {
+    setWalkinForm(prev => ({ ...prev, doctor_id: docId }));
+    try {
+      const srvs = await hospitalApi.getServices(docId);
+      const list = srvs && srvs.length > 0 ? srvs : DEFAULT_AESTHETIC_SERVICES;
+      setDoctorSpecificServices(list);
+      if (list.length > 0) {
+        setWalkinForm(prev => ({ ...prev, doctor_id: docId, service_id: list[0].id }));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const loadData = async (targetFilter = queueDateFilter) => {
     setLoading(true);
     try {
@@ -90,18 +107,24 @@ export default function ReceptionistView({ onPatientSelected }) {
         dateParam = new Date(Date.now() + 86400000).toISOString().split("T")[0];
       }
 
-      const [statsData, pendingData, queueData, docData, srvData] = await Promise.all([
+      const [statsData, pendingData, queueData, docData, srvData, docSrvData] = await Promise.all([
         hospitalApi.getAdminStats(),
         hospitalApi.getPendingBookingRequests(),
         hospitalApi.getLiveQueue(null, dateParam),
         hospitalApi.getDoctors(),
-        hospitalApi.getServices()
+        hospitalApi.getServices(),
+        hospitalApi.getServices(walkinForm.doctor_id)
       ]);
       setStats(statsData);
       setPendingRequests(pendingData || []);
       setLiveQueue(queueData || []);
       if (docData && docData.length > 0) setDoctors(docData);
       if (srvData && srvData.length > 0) setServices(srvData);
+      if (docSrvData && docSrvData.length > 0) {
+        setDoctorSpecificServices(docSrvData);
+      } else if (srvData && srvData.length > 0) {
+        setDoctorSpecificServices(srvData);
+      }
     } catch (err) {
       console.error("Error loading receptionist data:", err);
     } finally {
@@ -169,7 +192,11 @@ export default function ReceptionistView({ onPatientSelected }) {
     e.preventDefault();
     try {
       const res = await hospitalApi.registerPatient(regForm);
-      setActionAlert({ type: "success", text: `Patient ${res.full_name} registered successfully (ID: ${res.patient_id})` });
+      const newId = res.patient_id || res.id;
+      if (onPatientSelected && newId) {
+        onPatientSelected(newId);
+      }
+      setActionAlert({ type: "success", text: `Patient ${res.full_name} registered successfully (ID: ${newId}${res.mrn ? ` • MRN: ${res.mrn}` : ""})` });
       setShowRegisterModal(false);
       setRegForm({
         full_name: "", phone: "", gender: "female", dob: "1995-01-01",
@@ -178,6 +205,9 @@ export default function ReceptionistView({ onPatientSelected }) {
       });
       setDuplicateWarning(null);
       loadData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("hospital_patients_updated", { detail: res }));
+      }
     } catch (err) {
       setActionAlert({ type: "error", text: err.message });
     }
@@ -230,10 +260,17 @@ export default function ReceptionistView({ onPatientSelected }) {
 
   const handleViewOperationalPatient = async (patientId) => {
     try {
-      const data = await hospitalApi.getPatientOperationalData(patientId);
+      setLoadingPatientPackages(true);
+      const [data, pkgs] = await Promise.all([
+        hospitalApi.getPatientOperationalData(patientId),
+        hospitalApi.getPatientPackages(patientId)
+      ]);
       setSelectedPatientOperational(data);
+      setSelectedPatientPackages(pkgs || []);
     } catch (err) {
       setActionAlert({ type: "error", text: err.message });
+    } finally {
+      setLoadingPatientPackages(false);
     }
   };
 
@@ -411,12 +448,26 @@ export default function ReceptionistView({ onPatientSelected }) {
                       <div className="font-bold text-[#253237]">{p.full_name}</div>
                       <div className="text-xs text-[#5C6B73]">CNIC: {p.cnic} • Phone: {p.phone}</div>
                     </div>
-                    <button
-                      onClick={() => handleViewOperationalPatient(p.id)}
-                      className="px-3 py-1 bg-[#C2DFE3] hover:bg-[#9DB4C0] text-[#253237] font-semibold rounded-lg text-xs transition-colors"
-                    >
-                      View Operational History
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleViewOperationalPatient(p.id)}
+                        className="px-3 py-1 bg-[#C2DFE3] hover:bg-[#9DB4C0] text-[#253237] font-semibold rounded-lg text-xs transition-colors cursor-pointer"
+                      >
+                        History
+                      </button>
+                      {onNavigateTo && (
+                        <button
+                          onClick={() => {
+                            onPatientSelected?.(p.id);
+                            onNavigateTo("pos", p.id);
+                          }}
+                          className="px-2.5 py-1 bg-[#253237] hover:bg-[#1b2428] text-white font-semibold rounded-lg text-xs transition-colors flex items-center gap-1 cursor-pointer"
+                          title="Open POS Terminal with this patient pre-selected"
+                        >
+                          <ShoppingCart className="w-3 h-3 text-[#E0FBFC]" /> Bill POS
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -522,21 +573,35 @@ export default function ReceptionistView({ onPatientSelected }) {
                         </button>
                       )}
 
-                      <button
-                        onClick={() => {
-                          setSelectedApptForPay(item);
-                          setPaymentForm({
-                            amount_paid: 2500,
-                            total_amount: 2500,
-                            payment_method: "cash",
-                            notes: `POS receipt for Token #${item.token_number}`
-                          });
-                          setShowPaymentModal(true);
-                        }}
-                        className="px-2.5 py-1 bg-[#C2DFE3] hover:bg-[#9DB4C0] text-[#253237] text-xs font-semibold rounded-md flex items-center gap-1 cursor-pointer"
-                      >
-                        <DollarSign className="w-3 h-3" /> Billing
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setSelectedApptForPay(item);
+                            setPaymentForm({
+                              amount_paid: 2500,
+                              total_amount: 2500,
+                              payment_method: "cash",
+                              notes: `POS receipt for Token #${item.token_number}`
+                            });
+                            setShowPaymentModal(true);
+                          }}
+                          className="px-2 py-1 bg-[#C2DFE3] hover:bg-[#9DB4C0] text-[#253237] text-xs font-semibold rounded-md flex items-center gap-1 cursor-pointer"
+                        >
+                          <DollarSign className="w-3 h-3" /> Billing
+                        </button>
+                        {onNavigateTo && (
+                          <button
+                            onClick={() => {
+                              onPatientSelected?.(item.patient_id);
+                              onNavigateTo("pos", item.patient_id);
+                            }}
+                            className="px-2 py-1 bg-[#253237] hover:bg-[#1b2428] text-white text-xs font-semibold rounded-md flex items-center gap-1 cursor-pointer"
+                            title="Open full POS terminal for this patient"
+                          >
+                            <ShoppingCart className="w-3 h-3 text-[#E0FBFC]" /> POS
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -733,7 +798,7 @@ export default function ReceptionistView({ onPatientSelected }) {
                 <label className="block text-xs font-bold text-[#253237] mb-1">Attending Doctor *</label>
                 <select
                   value={walkinForm.doctor_id}
-                  onChange={(e) => setWalkinForm({ ...walkinForm, doctor_id: e.target.value })}
+                  onChange={(e) => handleDoctorChangeInWalkin(e.target.value)}
                   className="w-full clinical-input"
                 >
                   {doctors.map(d => (
@@ -743,16 +808,19 @@ export default function ReceptionistView({ onPatientSelected }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#253237] mb-1">Clinical Service *</label>
+                <label className="block text-xs font-bold text-[#253237] mb-1">Clinical Service (Specific to Selected Doctor) *</label>
                 <select
                   value={walkinForm.service_id}
                   onChange={(e) => setWalkinForm({ ...walkinForm, service_id: e.target.value })}
                   className="w-full clinical-input"
                 >
-                  {services.map(s => (
+                  {(doctorSpecificServices.length > 0 ? doctorSpecificServices : services).map(s => (
                     <option key={s.id} value={s.id}>{s.name} (PKR {s.base_price})</option>
                   ))}
                 </select>
+                <p className="text-[10px] text-[#5C6B73] mt-1">
+                  Only procedures approved for this specific doctor are available for booking.
+                </p>
               </div>
 
               <div>
@@ -899,6 +967,92 @@ export default function ReceptionistView({ onPatientSelected }) {
                 ))}
               </div>
             </div>
+
+            {/* Prescribed Treatment Packages & Multi-Session Progress (Read-Only) */}
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-[#253237]" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#253237]">Doctor-Prescribed Treatment Plans & Sessions</h4>
+                </div>
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                  <Lock className="w-3 h-3 text-slate-400" /> Read-Only (Managed in Doctor Chamber)
+                </span>
+              </div>
+
+              {loadingPatientPackages ? (
+                <div className="text-xs text-center py-4 text-[#5C6B73]">Loading patient packages...</div>
+              ) : selectedPatientPackages.length === 0 ? (
+                <div className="text-xs text-[#5C6B73] p-3 rounded-lg border border-dashed border-[#C2DFE3] text-center">
+                  No active multi-session combination packages prescribed for this patient.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {selectedPatientPackages.map(pkg => (
+                    <div key={pkg.id} className="p-3.5 rounded-xl border border-[#9DB4C0] bg-white shadow-xs space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-bold text-xs text-[#253237]">{pkg.package_name}</div>
+                          <div className="text-[11px] text-[#5C6B73]">
+                            Prescribed by {pkg.doctor_name || "Doctor"} • Net Total: <strong>PKR {(pkg.final_price ?? pkg.total_price)?.toLocaleString()}</strong>
+                            {pkg.discount_amount > 0 && (
+                              <span className="ml-1 text-emerald-700 font-medium">
+                                (Catalog PKR {pkg.total_price?.toLocaleString()} - {pkg.discount_amount?.toLocaleString()} off)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <StatusBadge status={pkg.status} />
+                      </div>
+
+                      <div className="divide-y divide-slate-100">
+                        {(pkg.items || []).map(item => {
+                          const pct = Math.round((item.sessions_used / (item.sessions_total || 1)) * 100);
+                          return (
+                            <div key={item.id} className="py-2 text-xs space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-[#253237]">{item.service_name}</span>
+                                <span className="text-[11px] font-bold text-[#5C6B73]">
+                                  {item.sessions_used} / {item.sessions_total} sessions completed
+                                </span>
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full transition-all ${pct >= 100 ? 'bg-emerald-500' : 'bg-[#253237]'}`} 
+                                  style={{ width: `${pct}%` }} 
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {pkg.clinical_notes && (
+                        <div className="text-[11px] text-[#5C6B73] italic bg-slate-50 p-2 rounded border border-slate-100">
+                          Note: {pkg.clinical_notes}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {onNavigateTo && (
+              <div className="pt-3 border-t border-[#C2DFE3] flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onPatientSelected?.(selectedPatientOperational.id);
+                    onNavigateTo("pos", selectedPatientOperational.id);
+                    setSelectedPatientOperational(null);
+                  }}
+                  className="btn-primary text-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  <ShoppingCart className="w-3.5 h-3.5" /> Open Patient in POS Terminal
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

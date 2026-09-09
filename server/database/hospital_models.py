@@ -135,6 +135,11 @@ class PatientRegistrationRequest(BaseModel):
     doctor_id: Optional[str] = None
     service_id: Optional[str] = None
     auto_queue: bool = True
+    mrn: Optional[str] = None
+    skin_type: Optional[str] = "Fitzpatrick Type III (Medium)"
+    allergies: Optional[str] = "No known allergies"
+    advance_balance: Optional[float] = 0.0
+    current_balance: Optional[float] = 0.0
 
 
 class PatientDuplicateCheck(BaseModel):
@@ -584,3 +589,79 @@ class DashboardStatsOut(BaseModel):
     total_active_doctors: int
     total_patients_registered: int
     today_revenue: float
+
+
+# ==============================================================================
+# PATIENT TREATMENT PACKAGES & MULTI-SESSION MODELS
+# ==============================================================================
+
+class PackageItemInput(BaseModel):
+    service_id: Optional[str] = None
+    item_name: str
+    sessions_total: int = 1
+    sessions_used: int = 0
+    unit_price: float = 0.0
+
+
+class PackageItemOut(BaseModel):
+    id: str
+    package_id: str
+    service_id: Optional[str] = None
+    item_name: str
+    sessions_total: int
+    sessions_used: int
+    sessions_remaining: int
+    unit_price: float
+    last_served_date: Optional[str] = None
+    last_served_doctor_id: Optional[str] = None
+    status: str
+    created_at: str
+
+
+class PatientPackageCreateRequest(BaseModel):
+    doctor_id: str
+    package_name: str
+    package_type: str = "multi_package"  # "single_service" or "multi_package"
+    total_price: float
+    discount_amount: float = 0.0
+    notes: Optional[str] = None
+    items: List[PackageItemInput]
+
+
+class PatientPackageUpdateRequest(BaseModel):
+    doctor_id: Optional[str] = None
+    package_name: Optional[str] = None
+    package_type: Optional[str] = None
+    total_price: Optional[float] = None
+    discount_amount: Optional[float] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    items: Optional[List[PackageItemInput]] = None
+
+
+class ConsumeSessionRequest(BaseModel):
+    doctor_id: str
+    delta: int = 1
+    notes: Optional[str] = "Session completed during clinical consultation"
+
+
+class PatientPackageOut(BaseModel):
+    id: str
+    patient_id: str
+    doctor_id: str
+    doctor_name: Optional[str] = None
+    doctor_specialization: Optional[str] = None
+    package_name: str
+    package_type: str
+    total_price: float
+    discount_amount: float
+    final_price: float
+    status: str
+    notes: Optional[str] = None
+    created_at: str
+    updated_at: str
+    items: List[PackageItemOut] = []
+    total_sessions: int = 0
+    consumed_sessions: int = 0
+    remaining_sessions: int = 0
+

@@ -33,7 +33,7 @@ export default function ThermalReceipt({ sale }) {
       {/* Queue Token Highlight */}
       <div className="text-center py-2 bg-gray-100 my-2 border border-gray-300 rounded">
         <span className="text-[10px] uppercase font-bold text-gray-600">Waiting Lounge Token</span>
-        <div className="text-2xl font-black">{sale.token_number || 'P-01'}</div>
+        <div className="text-2xl font-black">{sale.token_number || 'Token 01'}</div>
       </div>
 
       {/* Patient & Doctor Meta */}

@@ -85,12 +85,17 @@ class BillingService:
     @staticmethod
     def get_patient_financial_summary(patient_id: str) -> Dict[str, Any]:
         """
-        AI-safe and patient-safe basic financial summary.
-        Only returns amount paid, outstanding dues, and basic charge summary.
-        Excludes administrative overheads, doctor commissions, or hospital ledger.
+        Authoritative patient-safe financial summary synchronized across all clinic views.
+        Reconciles payments transactions with registered advance_balance and current_balance.
         """
         conn = get_db_connection()
         cursor = conn.cursor()
+
+        # Fetch authoritative patient balance on record
+        cursor.execute("SELECT advance_balance, current_balance FROM patients WHERE id = ?", (patient_id,))
+        pat_row = cursor.fetchone()
+        pat_advance = float(pat_row["advance_balance"]) if pat_row and pat_row["advance_balance"] is not None else 0.0
+        pat_current = float(pat_row["current_balance"]) if pat_row and pat_row["current_balance"] is not None else 0.0
 
         cursor.execute("""
             SELECT 
@@ -113,11 +118,23 @@ class BillingService:
         transactions = [dict(r) for r in cursor.fetchall()]
         conn.close()
 
+        total_billed = float(totals["total_billed"])
+        total_paid = float(totals["total_paid"])
+        # Outstanding due is synchronized with payments amount_due or patient's current_balance
+        outstanding_due = max(float(totals["total_due"]), pat_current)
+        if total_billed == 0.0 and outstanding_due > 0.0:
+            total_billed = outstanding_due
+
         return {
             "patient_id": patient_id,
-            "total_billed": totals["total_billed"],
-            "total_paid": totals["total_paid"],
-            "outstanding_due": totals["total_due"],
-            "has_dues": totals["total_due"] > 0,
+            "total_billed": total_billed,
+            "total_paid": total_paid,
+            "outstanding_due": outstanding_due,
+            "outstanding_balance": outstanding_due,
+            "current_balance": outstanding_due,
+            "advance_balance": pat_advance,
+            "advance_wallet": pat_advance,
+            "wallet_balance": pat_advance,
+            "has_dues": outstanding_due > 0.0,
             "recent_payments": transactions
         }

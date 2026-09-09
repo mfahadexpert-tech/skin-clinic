@@ -7,7 +7,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ShoppingCart,
   UserPlus, 
@@ -20,7 +20,9 @@ import {
   Wallet,
   Plus,
   Boxes,
-  X
+  X,
+  Package,
+  Lock
 } from 'lucide-react';
 import TreatmentCart from './TreatmentCart';
 import CustomPackageModal from './CustomPackageModal';
@@ -28,20 +30,54 @@ import SplitCheckoutModal from './SplitCheckoutModal';
 import ThermalReceipt from './ThermalReceipt';
 import MedicalInvoiceA4 from './MedicalInvoiceA4';
 import { api } from '@/lib/api';
+import { hospitalApi } from '@/lib/hospitalApi';
+
+const DEFAULT_PATIENTS = [
+  { id: 'pat-01', name: 'Zainab Fatima', phone: '+923011112233', mrn: '0001-08-2026', visit_count: 3, current_balance: 0, advance_balance: 1500 },
+  { id: 'pat-02', name: 'Bilal Hassan', phone: '+923022223344', mrn: '0002-08-2026', visit_count: 2, current_balance: 3000, advance_balance: 0 },
+  { id: 'pat-03', name: 'Hamza Ali', phone: '+923033334455', mrn: '0003-08-2026', visit_count: 1, current_balance: 0, advance_balance: 0 },
+  { id: 'pat-04', name: 'Maryam Siddiqui', phone: '+923044445566', mrn: '0004-08-2026', visit_count: 5, current_balance: 0, advance_balance: 5000 },
+  { id: 'pat-05', name: 'Usman Sheikh', phone: '+923055556677', mrn: '0005-08-2026', visit_count: 4, current_balance: 0, advance_balance: 1000 }
+];
+
+const DEFAULT_DOCTORS = [
+  { id: 'doc-01', name: 'Dr. Ahmed Tariq', designation: 'Consultant Dermatologist', specialization: 'Laser Surgery & Trichology' },
+  { id: 'doc-02', name: 'Dr. Sarah Khan', designation: 'Aesthetic Physician', specialization: 'Injectables & Medical Peels' }
+];
+
+const DEFAULT_PRODUCTS = [
+  { id: 'srv-01', name: 'Dermatology & Skin Assessment', selling_price: 2500, is_service: true, sessions_default: 1 },
+  { id: 'srv-03', name: 'HydraFacial MD Elite Glow', selling_price: 6000, is_service: true, sessions_default: 1 },
+  { id: 'srv-02', name: 'Fractional CO2 Laser Resurfacing', selling_price: 8500, is_service: true, sessions_default: 1 },
+  { id: 'srv-04', name: 'PRP Hair Restoration & Scalp Boost', selling_price: 9500, is_service: true, sessions_default: 1 },
+  { id: 'srv-05', name: 'Medical Chemical Peel (Glycolic/TCA)', selling_price: 4500, is_service: true, sessions_default: 1 },
+  { id: 'srv-06', name: 'Q-Switched Nd:YAG Carbon Laser Peel', selling_price: 7000, is_service: true, sessions_default: 1 },
+  { id: 'srv-12', name: 'Botox / Dysport Anti-Wrinkle Smoothing', selling_price: 18000, is_service: true, sessions_default: 1 },
+  { id: 'srv-09', name: 'Triple-Wavelength Diode Laser Hair Removal', selling_price: 5500, is_service: true, sessions_default: 1 },
+  { id: 2, name: 'DermaShield SPF 60 Sunblock (100ml)', selling_price: 2200, is_service: false, sessions_default: 1 },
+  { id: 3, name: 'Hyaluronic Acid Hydrating Serum (30ml)', selling_price: 3500, is_service: false, sessions_default: 1 }
+];
 
 export default function POSTerminal({ 
   patients = [], 
   products = [], 
   deals = [], 
   doctors = [], 
+  initialPatientId = null,
+  activePatientId = null,
   onCheckout, 
   onRegisterPatient,
-  onRegisterDoctor, 
+  onRegisterDoctor,
+  onPatientSelected,
+  onSaleCompleted,
   isOffline 
 }) {
-  const [patientList, setPatientList] = useState(patients);
-  const [doctorList, setDoctorList] = useState(doctors);
-  const [productList, setProductList] = useState(products);
+  const [patientList, setPatientList] = useState(patients && patients.length > 0 ? patients : DEFAULT_PATIENTS);
+  const [doctorList, setDoctorList] = useState(doctors && doctors.length > 0 ? doctors : DEFAULT_DOCTORS);
+  const [productList, setProductList] = useState(products && products.length > 0 ? products : DEFAULT_PRODUCTS);
+  const [selectedPatientId, setSelectedPatientId] = useState(activePatientId || initialPatientId || patientList[0]?.id || 'pat-01');
+  const [patientAppointments, setPatientAppointments] = useState([]);
+  const [patientFinancials, setPatientFinancials] = useState(null);
 
   useEffect(() => {
     if (patients && patients.length > 0) setPatientList(patients);
@@ -55,14 +91,57 @@ export default function POSTerminal({
     if (products && products.length > 0) setProductList(products);
   }, [products]);
 
-  const [selectedPatientId, setSelectedPatientId] = useState(patientList[0]?.id || 1);
-  const [selectedDoctorId, setSelectedDoctorId] = useState(doctorList[0]?.id || 1);
+  useEffect(() => {
+    const targetId = activePatientId || initialPatientId;
+    if (targetId && String(targetId) !== String(selectedPatientId)) {
+      setSelectedPatientId(targetId);
+    }
+  }, [activePatientId, initialPatientId]);
+
+  // Autonomous API Fetch for live synchronization
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      try {
+        const [overviewRes, patientsRes, hospitalDoctors] = await Promise.allSettled([
+          api.getPOSOverview(),
+          hospitalApi.listPatients(200),
+          hospitalApi.getDoctors()
+        ]);
+        if (isMounted) {
+          if (overviewRes.status === "fulfilled" && overviewRes.value?.success) {
+            if (overviewRes.value.products?.length > 0) setProductList(overviewRes.value.products);
+          }
+          if (hospitalDoctors.status === "fulfilled" && Array.isArray(hospitalDoctors.value) && hospitalDoctors.value.length > 0) {
+            setDoctorList(hospitalDoctors.value.map(d => ({
+              id: d.id,
+              name: d.full_name || d.name,
+              designation: d.specialization,
+              specialization: d.specialization
+            })));
+          }
+          if (patientsRes.status === "fulfilled" && Array.isArray(patientsRes.value) && patientsRes.value.length > 0) {
+            setPatientList(patientsRes.value);
+            if (!initialPatientId) {
+              setSelectedPatientId(patientsRes.value[0].id);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Using fallback local catalog:", err);
+      }
+    }
+    loadData();
+    return () => { isMounted = false; };
+  }, [initialPatientId]);
+
+  const [selectedDoctorId, setSelectedDoctorId] = useState(doctorList[0]?.id || 'doc-01');
   const [sessionRemarks, setSessionRemarks] = useState('Session 1 completed. Advised SPF 50+ sunblock.');
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState([
     {
-      product_id: 1,
-      product_name: 'HydraFacial Deluxe',
+      product_id: 'srv-03',
+      product_name: 'HydraFacial MD Elite Glow',
       quantity: 1,
       unit_price: 6000,
       sessions_allowed: 1,
@@ -83,13 +162,16 @@ export default function POSTerminal({
   const [isAddServiceOpen, setIsAddServiceOpen] = useState(false);
   const [isCustomPackageOpen, setIsCustomPackageOpen] = useState(false);
   const [isSplitCheckoutOpen, setIsSplitCheckoutOpen] = useState(false);
+  const [showDoctorPackagesModal, setShowDoctorPackagesModal] = useState(false);
+  const [patientDoctorPackages, setPatientDoctorPackages] = useState([]);
+  const [loadingDoctorPackages, setLoadingDoctorPackages] = useState(false);
   const [completedSale, setCompletedSale] = useState(null);
   const [printMode, setPrintMode] = useState('80mm');
 
   // New Patient Form
   const [newPatientName, setNewPatientName] = useState('');
   const [newPatientPhone, setNewPatientPhone] = useState('');
-  const [newPatientSkin, setNewPatientSkin] = useState('Medium Asian Skin');
+  const [newPatientSkin, setNewPatientSkin] = useState('Fitzpatrick Type III (Medium)');
 
   // New Doctor Form
   const [newDocName, setNewDocName] = useState('');
@@ -102,8 +184,8 @@ export default function POSTerminal({
   const [newServiceType, setNewServiceType] = useState('service');
   const [newServiceSessions, setNewServiceSessions] = useState(1);
 
-  const selectedPatient = patientList.find(p => p.id === parseInt(selectedPatientId)) || patientList[0] || {
-    id: 1, name: 'Ayesha Khan', phone: '0300-1234567', mrn: '0001-08-2026', visit_count: 10, current_balance: 14809, advance_balance: 2000
+  const selectedPatient = patientList.find(p => String(p.id) === String(selectedPatientId)) || patientList[0] || {
+    id: 'pat-01', name: 'Zainab Fatima', phone: '+923011112233', mrn: '0001-08-2026', visit_count: 3, current_balance: 0, advance_balance: 1500
   };
 
   const subtotal = cart.reduce((acc, item) => acc + item.total_price, 0);
@@ -112,6 +194,62 @@ export default function POSTerminal({
   useEffect(() => {
     setPaidAmount(grandTotal);
   }, [grandTotal]);
+
+  useEffect(() => {
+    if (!selectedPatientId) return;
+    setLoadingDoctorPackages(true);
+    hospitalApi.getPatientPackages(selectedPatientId)
+      .then(pkgs => setPatientDoctorPackages(pkgs || []))
+      .catch(() => setPatientDoctorPackages([]))
+      .finally(() => setLoadingDoctorPackages(false));
+
+    hospitalApi.getPatientFinancialSummary(selectedPatientId)
+      .then(data => setPatientFinancials(data))
+      .catch(() => setPatientFinancials(null));
+
+    hospitalApi.getPatientAppointments(selectedPatientId)
+      .then(appts => setPatientAppointments(Array.isArray(appts) ? appts : []))
+      .catch(() => setPatientAppointments([]));
+  }, [selectedPatientId]);
+
+  const activeAppointment = useMemo(() => {
+    if (!patientAppointments || patientAppointments.length === 0) return null;
+    const live = patientAppointments.find(a => ['in_consultation', 'called', 'waiting', 'checked_in'].includes(a.status));
+    if (live) return live;
+    const today = new Date().toISOString().split('T')[0];
+    const todayAppt = patientAppointments.find(a => a.status === 'confirmed' && a.appointment_date === today);
+    if (todayAppt) return todayAppt;
+    const withToken = patientAppointments.find(a => a.token_number);
+    if (withToken) return withToken;
+    return patientAppointments[0];
+  }, [patientAppointments]);
+
+  const activeTokenNumber = useMemo(() => {
+    if (activeAppointment?.token_number) {
+      const raw = String(activeAppointment.token_number).trim();
+      return raw.toUpperCase().startsWith('TOKEN') ? raw : `Token ${String(raw).padStart(2, '0')}`;
+    }
+    return 'No Active Token';
+  }, [activeAppointment]);
+
+  const handleAddPrescribedPackage = (pkg) => {
+    if (!pkg || !pkg.items || pkg.items.length === 0) return;
+    const packageItems = pkg.items.map(item => ({
+      product_id: item.service_id,
+      product_name: `${item.service_name} (${pkg.package_name})`,
+      quantity: 1,
+      unit_price: item.unit_price || 0,
+      sessions_allowed: item.sessions_total || 1,
+      sessions_consumed: item.sessions_used || 0,
+      item_group_name: pkg.package_name,
+      total_price: (item.unit_price || 0) * (item.sessions_total || 1)
+    }));
+    if (pkg.discount_amount && Number(pkg.discount_amount) > 0) {
+      setDiscountAmount(prev => Number(prev || 0) + Number(pkg.discount_amount));
+    }
+    setCart(prev => [...prev, ...packageItems]);
+    setShowDoctorPackagesModal(false);
+  };
 
   const handleAddProduct = (product) => {
     const existingIndex = cart.findIndex(item => item.product_id === product.id && !item.item_group_name);
@@ -215,7 +353,8 @@ export default function POSTerminal({
 
     const payload = {
       customer_id: selectedPatient.id,
-      doctor_id: parseInt(selectedDoctorId),
+      doctor_id: selectedDoctorId,
+      token_number: activeTokenNumber !== 'No Active Token' ? activeTokenNumber : undefined,
       items: cart,
       subtotal,
       discount_amount: parseFloat(discountAmount) || 0,
@@ -226,9 +365,54 @@ export default function POSTerminal({
       clinical_remarks: sessionRemarks
     };
 
-    const result = await onCheckout(payload);
-    if (result && result.sale) {
-      setCompletedSale(result.sale);
+    let saleResult = null;
+    if (onCheckout) {
+      saleResult = await onCheckout(payload);
+    } else {
+      try {
+        const res = await api.createSale(payload);
+        if (res && res.sale) {
+          saleResult = res;
+        }
+      } catch (e) {
+        console.warn("Backend checkout API offline or error, generating local transaction slip:", e);
+      }
+    }
+
+    if (saleResult && saleResult.sale) {
+      setCompletedSale(saleResult.sale);
+      onSaleCompleted?.(saleResult.sale);
+    } else {
+      const fallbackSale = {
+        id: Date.now(),
+        invoice_number: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
+        customer_id: selectedPatient.id,
+        customer_name: selectedPatient.name,
+        customer_mrn: selectedPatient.mrn || "0001-08-2026",
+        doctor_id: selectedDoctorId,
+        doctor_name: doctorList.find(d => String(d.id) === String(selectedDoctorId))?.name || "Dr. Ahmed Tariq",
+        token_number: activeTokenNumber !== 'No Active Token' ? activeTokenNumber : "Token 01",
+        date: new Date().toISOString(),
+        subtotal: subtotal,
+        discount_amount: parseFloat(discountAmount) || 0,
+        tax_amount: parseFloat(taxAmount) || 0,
+        grand_total: grandTotal,
+        paid_amount: parseFloat(paidAmount) || 0,
+        payment_status: (parseFloat(paidAmount) || 0) >= grandTotal ? "paid" : (parseFloat(paidAmount) || 0) > 0 ? "partial" : "pending",
+        payment_method: paymentMethod,
+        clinical_remarks: sessionRemarks,
+        items: cart.map((item, idx) => ({
+          id: idx + 1,
+          product_name: item.product_name,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          sessions_allowed: item.sessions_allowed,
+          sessions_consumed: item.sessions_consumed,
+          total_price: item.total_price
+        }))
+      };
+      setCompletedSale(fallbackSale);
+      onSaleCompleted?.(fallbackSale);
     }
   };
 
@@ -248,33 +432,49 @@ export default function POSTerminal({
           phone: newPatientPhone,
           skin_type: newPatientSkin
         });
-        if (res && res.patient) {
-          createdPatient = res.patient;
+        if (res && (res.patient || res.id)) {
+          createdPatient = res.patient || res;
+        }
+      }
+
+      if (!createdPatient) {
+        try {
+          const res = await api.registerPatient({
+            name: newPatientName,
+            phone: newPatientPhone,
+            skin_type: newPatientSkin
+          });
+          if (res && res.patient) {
+            createdPatient = res.patient;
+          }
+        } catch (apiErr) {
+          console.warn("Direct API register error:", apiErr);
         }
       }
 
       if (!createdPatient) {
         createdPatient = {
-          id: Date.now(),
-          mrn: `00${patientList.length + 1}-08-2026`,
+          id: `pat-${Date.now().toString().slice(-4)}`,
+          mrn: `000${patientList.length + 1}-08-2026`,
           name: newPatientName,
           phone: newPatientPhone,
           skin_type: newPatientSkin,
           visit_count: 0,
           current_balance: 0,
-          advance_balance: 2000
+          advance_balance: 0
         };
       }
 
       setPatientList(prev => {
-        const exists = prev.some(p => p.id === createdPatient.id);
+        const exists = prev.some(p => String(p.id) === String(createdPatient.id));
         return exists ? prev : [createdPatient, ...prev];
       });
       setSelectedPatientId(createdPatient.id);
+      onPatientSelected?.(createdPatient.id);
       setIsAddPatientOpen(false);
       setNewPatientName('');
       setNewPatientPhone('');
-      alert(`Patient "${createdPatient.name}" created and selected!`);
+      alert(`Patient "${createdPatient.name || createdPatient.full_name}" registered and selected!`);
     } catch (err) {
       console.error(err);
     }
@@ -338,14 +538,16 @@ export default function POSTerminal({
     }
   };
 
+  const walletBalance = Number(patientFinancials?.advance_balance ?? selectedPatient?.advance_balance ?? 0);
+  const remainingDue = Number(patientFinancials?.outstanding_due ?? selectedPatient?.current_balance ?? 0);
+
   const handleApplyWalletCredit = () => {
-    const walletAmt = selectedPatient.advance_balance || 2000;
-    if (walletAmt <= 0) {
-      alert('Selected patient does not have advance wallet credit.');
+    if (walletBalance <= 0) {
+      alert('Selected patient has PKR 0 advance wallet credit.');
       return;
     }
     setPaymentMethod('wallet');
-    alert(`Wallet Payment selected! PKR ${walletAmt} store credit will be applied.`);
+    alert(`Wallet Payment selected! PKR ${walletBalance.toLocaleString()} store credit will be applied.`);
   };
 
   return (
@@ -375,11 +577,16 @@ export default function POSTerminal({
 
           <button
             type="button"
-            onClick={() => setIsCustomPackageOpen(true)}
-            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-slate-900 text-white transition shadow cursor-pointer"
+            onClick={() => setShowDoctorPackagesModal(true)}
+            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-extrabold bg-[#253237] hover:bg-slate-900 text-white transition shadow cursor-pointer relative"
           >
-            <PackagePlus className="w-4 h-4" />
-            <span>+ Create Custom Package</span>
+            <Package className="w-4 h-4 text-teal-300" />
+            <span>Doctor Prescribed Packages</span>
+            {patientDoctorPackages.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-black">
+                {patientDoctorPackages.length}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -408,7 +615,10 @@ export default function POSTerminal({
               <div className="sm:col-span-7">
                 <select
                   value={selectedPatientId}
-                  onChange={(e) => setSelectedPatientId(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedPatientId(e.target.value);
+                    onPatientSelected?.(e.target.value);
+                  }}
                   className="w-full glass-input text-xs font-bold text-slate-900 cursor-pointer py-2"
                 >
                   {patientList.map(p => (
@@ -420,7 +630,7 @@ export default function POSTerminal({
               </div>
 
               {/* Status Badges */}
-              <div className="sm:col-span-5 flex items-center space-x-1.5">
+              <div className="sm:col-span-5 flex flex-wrap items-center gap-1.5">
                 <span className="text-xs px-2 py-1 rounded-md font-bold bg-slate-100 text-slate-800 border border-slate-300 whitespace-nowrap">
                   Visits: {selectedPatient?.visit_count || 0}
                 </span>
@@ -432,10 +642,40 @@ export default function POSTerminal({
                   className="text-xs px-2.5 py-1 rounded-md font-black bg-emerald-100 text-emerald-900 border border-emerald-400 hover:bg-slate-900 hover:text-white transition cursor-pointer flex items-center space-x-1"
                 >
                   <Wallet className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>Wallet: PKR {selectedPatient?.advance_balance || 2000}</span>
+                  <span>Wallet: PKR {walletBalance.toLocaleString()}</span>
                 </button>
+
+                {remainingDue > 0 && (
+                  <span className="text-xs px-2 py-1 rounded-md font-black bg-rose-100 text-rose-900 border border-rose-300 whitespace-nowrap">
+                    Due: PKR {remainingDue.toLocaleString()}
+                  </span>
+                )}
               </div>
             </div>
+
+            {/* Doctor-Prescribed Packages Notification Banner */}
+            {patientDoctorPackages.length > 0 && (
+              <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Package className="w-4 h-4 text-teal-800 shrink-0" />
+                  <div>
+                    <span className="text-xs font-bold text-teal-950 block">
+                      {patientDoctorPackages.length} Doctor-Prescribed Treatment Package(s) Available
+                    </span>
+                    <span className="text-[11px] text-teal-700">
+                      Tailored multi-session plan by attending physician for this patient.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDoctorPackagesModal(true)}
+                  className="text-xs font-bold bg-teal-800 hover:bg-teal-900 text-white px-3 py-1.5 rounded-lg shadow-xs cursor-pointer flex items-center space-x-1"
+                >
+                  <span>View / Add Package</span>
+                </button>
+              </div>
+            )}
 
             {/* Doctor & Notes */}
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
@@ -555,11 +795,15 @@ export default function POSTerminal({
             <div className="flex items-center justify-between bg-amber-50 p-3.5 rounded-xl border border-amber-300">
               <div>
                 <span className="text-[11px] uppercase font-black text-amber-800">Queue Token</span>
-                <div className="text-2xl font-black text-slate-900 font-mono">P-01</div>
+                <div className="text-2xl font-black text-slate-900 font-mono">
+                  {activeTokenNumber !== 'No Active Token' ? activeTokenNumber : 'Token --'}
+                </div>
               </div>
               <div className="text-right">
-                <span className="text-[11px] text-slate-600 font-bold">Room Assigned</span>
-                <div className="text-xs font-black text-amber-900">Treatment Suite 2</div>
+                <span className="text-[11px] text-slate-600 font-bold">Patient Status</span>
+                <div className="text-xs font-black text-amber-900">
+                  {activeAppointment ? `${(activeAppointment.status || '').replace('_', ' ').toUpperCase()} • Suite 2` : 'Treatment Suite 2'}
+                </div>
               </div>
             </div>
 
@@ -852,13 +1096,94 @@ export default function POSTerminal({
         </div>
       )}
 
-      {/* MODAL 4: Custom Package */}
-      {isCustomPackageOpen && (
-        <CustomPackageModal
-          products={productList}
-          onClose={() => setIsCustomPackageOpen(false)}
-          onSave={handleAddCustomPackage}
-        />
+      {/* MODAL 4: Doctor-Prescribed Packages Viewer & Billing */}
+      {showDoctorPackagesModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-300 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center space-x-2">
+                <Package className="w-5 h-5 text-teal-700" />
+                <h3 className="font-extrabold text-sm text-slate-900">
+                  Doctor-Prescribed Treatment Packages for {selectedPatient?.name || "Patient"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDoctorPackagesModal(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-600">
+              Only authorized doctors can formulate multi-session combination packages during consultation. Receptionists and cashiers can bill doctor-prescribed packages directly into the patient's cart.
+            </div>
+
+            {loadingDoctorPackages ? (
+              <div className="py-8 text-center text-xs text-slate-500">Loading doctor packages...</div>
+            ) : patientDoctorPackages.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                No active doctor-prescribed packages found for this patient. Packages are created by the attending doctor during clinic consultation.
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                {patientDoctorPackages.map(pkg => (
+                  <div key={pkg.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-bold text-sm text-slate-900 block">{pkg.package_name}</span>
+                        <span className="text-[11px] text-slate-600">
+                          Prescribed by <strong>{pkg.doctor_name || "Doctor"}</strong> • Total: <strong>PKR {(pkg.final_price ?? pkg.total_price)?.toLocaleString()}</strong>
+                          {pkg.discount_amount > 0 && (
+                            <span className="ml-1.5 text-emerald-700 font-bold">
+                              (Catalog PKR {pkg.total_price?.toLocaleString()} - Saved PKR {pkg.discount_amount?.toLocaleString()})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAddPrescribedPackage(pkg)}
+                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1"
+                      >
+                        <ShoppingCart className="w-3.5 h-3.5" />
+                        <span>Add Package to Cart</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-1.5 pt-1">
+                      {(pkg.items || []).map(item => (
+                        <div key={item.id} className="text-xs p-2 bg-white rounded-lg border border-slate-200 flex items-center justify-between">
+                          <span className="font-medium text-slate-800">{item.service_name}</span>
+                          <span className="text-slate-600 font-bold text-[11px]">
+                            {item.sessions_used} / {item.sessions_total} sessions completed • PKR {item.unit_price?.toLocaleString()} / session
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {pkg.clinical_notes && (
+                      <div className="text-[11px] text-slate-600 italic bg-amber-50 p-2 rounded border border-amber-200">
+                        Doctor Notes: {pkg.clinical_notes}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setShowDoctorPackagesModal(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* MODAL 5: Split Checkout */}

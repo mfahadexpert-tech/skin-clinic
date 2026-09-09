@@ -39,7 +39,7 @@ export default function MedicalInvoiceA4({ sale }) {
           <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Patient Information</h4>
           <div className="text-xs font-bold text-gray-900">{sale.customer_name}</div>
           <div className="text-[11px] text-gray-600">Medical ID (MRN): <span className="font-mono font-bold text-teal-700">{sale.customer_mrn || '0001-08-2026'}</span></div>
-          <div className="text-[11px] text-gray-600">Queue Token: {sale.token_number || 'P-01'}</div>
+          <div className="text-[11px] text-gray-600">Queue Token: {sale.token_number || 'Token 01'}</div>
         </div>
         <div>
           <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Attending Specialist</h4>

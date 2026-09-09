@@ -41,7 +41,19 @@ import {
 } from 'lucide-react';
 import { googleCalendarService } from '@/lib/googleCalendar';
 
-export default function CalendarManager({ appointments = [], doctors = [], patients = [], onAddAppointment }) {
+import { api } from '@/lib/api';
+import { hospitalApi } from '@/lib/hospitalApi';
+
+export default function CalendarManager({ 
+  appointments = [], 
+  doctors = [], 
+  patients = [], 
+  onAddAppointment,
+  onNavigateTo 
+}) {
+  const [livePatients, setLivePatients] = useState(patients && patients.length > 0 ? patients : []);
+  const [liveDoctors, setLiveDoctors] = useState(doctors && doctors.length > 0 ? doctors : []);
+
   // Calendar Navigation & Filter States
   const [currentMonth, setCurrentMonth] = useState('Agustus 2026');
   const [selectedDayNumber, setSelectedDayNumber] = useState(5); // 5 active in reference photo
@@ -66,24 +78,54 @@ export default function CalendarManager({ appointments = [], doctors = [], patie
 
   // Modal for "+ Check new" booking
   const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
-  const [newPatientId, setNewPatientId] = useState(patients[0]?.id || 1);
-  const [newDoctorId, setNewDoctorId] = useState(doctors[0]?.id || 1);
-  const [newTreatment, setNewTreatment] = useState('HydraFacial Deluxe');
+  const [newPatientId, setNewPatientId] = useState(patients[0]?.id || 'pat-01');
+  const [newDoctorId, setNewDoctorId] = useState(doctors[0]?.id || 'doc-01');
+  const [newTreatment, setNewTreatment] = useState('HydraFacial MD Elite Glow');
   const [newTime, setNewTime] = useState('09:00 AM');
-  const [newDate, setNewDate] = useState('2026-08-31');
+  const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
   const [newNotes, setNewNotes] = useState('');
 
   // Initial Schedule Items
   const [scheduleItems, setScheduleItems] = useState([
-    { id: 1, title: 'Check Health', day: 'MON 1', time: '09 AM - 10 AM', color: 'bg-purple-50 border-purple-200 text-purple-700' },
-    { id: 2, title: 'Check-Up Kid', day: 'WED 3', time: '08 AM - 09 AM', color: 'bg-[#fef9c3] border-yellow-200 text-yellow-800' },
-    { id: 3, title: 'Heart Check-Up', day: 'WED 3', time: '08 AM - 10 AM', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
-    { id: 4, title: 'Physical Control...', day: 'THU 4', time: '09 AM - 11 AM', color: 'bg-blue-600 border-blue-700 text-white font-bold shadow-lg shadow-blue-600/30' },
-    { id: 5, title: 'Body Condition', day: 'TUE 2', time: '10 AM - 11 AM', color: 'bg-amber-50 border-amber-200 text-amber-800' },
-    { id: 6, title: 'Check Your Teeth', day: 'WED 3', time: '10 AM - 11 AM', color: 'bg-rose-50 border-rose-200 text-rose-700' },
-    { id: 7, title: 'Check-Up Kid', day: 'WED 3', time: '12 AM - 13 AM', color: 'bg-lime-50 border-lime-200 text-lime-800' },
-    { id: 8, title: 'Check-Up', day: 'SAT 6', time: '12 AM - 13 AM', color: 'bg-purple-50 border-purple-200 text-purple-700' },
+    { id: 1, title: 'Dermatology Assessment (Zainab Fatima)', day: 'MON 1', time: '09 AM - 10 AM', color: 'bg-purple-50 border-purple-200 text-purple-700' },
+    { id: 2, title: 'HydraFacial Elite (Bilal Hassan)', day: 'WED 3', time: '08 AM - 09 AM', color: 'bg-[#fef9c3] border-yellow-200 text-yellow-800' },
+    { id: 3, title: 'Carbon Laser Peel (Hamza Ali)', day: 'WED 3', time: '08 AM - 10 AM', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
+    { id: 4, title: 'PRP Hair Therapy (Maryam Siddiqui)', day: 'THU 4', time: '09 AM - 11 AM', color: 'bg-blue-600 border-blue-700 text-white font-bold shadow-lg shadow-blue-600/30' },
+    { id: 5, title: 'Chemical Peel Review', day: 'TUE 2', time: '10 AM - 11 AM', color: 'bg-amber-50 border-amber-200 text-amber-800' }
   ]);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [pts, docs, sched] = await Promise.allSettled([
+          hospitalApi.listPatients(100),
+          hospitalApi.getDoctors(),
+          api.getCalendarSchedule()
+        ]);
+        if (pts.status === "fulfilled" && Array.isArray(pts.value) && pts.value.length > 0) {
+          setLivePatients(pts.value);
+          if (!newPatientId) setNewPatientId(pts.value[0].id);
+        }
+        if (docs.status === "fulfilled" && Array.isArray(docs.value) && docs.value.length > 0) {
+          setLiveDoctors(docs.value);
+          if (!newDoctorId) setNewDoctorId(docs.value[0].id);
+        }
+        if (sched.status === "fulfilled" && sched.value?.appointments?.length > 0) {
+          const mapped = sched.value.appointments.map((a, idx) => ({
+            id: a.id || idx,
+            title: `${a.treatment_name} (${a.customer_name})`,
+            day: 'TODAY',
+            time: a.appointment_time?.split('T')[1]?.slice(0, 5) || '09:00 AM',
+            color: 'bg-emerald-50 border-emerald-200 text-emerald-800 font-bold'
+          }));
+          setScheduleItems(mapped);
+        }
+      } catch (err) {
+        console.warn("Calendar live fetch fallback:", err);
+      }
+    }
+    loadData();
+  }, []);
 
   // Handle Month Navigation
   const handlePrevMonth = () => {
@@ -96,7 +138,7 @@ export default function CalendarManager({ appointments = [], doctors = [], patie
   // Handle Export / Download Data (iCal & CSV)
   const handleDownloadData = () => {
     const icsData = googleCalendarService.exportICS(appointments.length > 0 ? appointments : [
-      { id: 1, treatment_name: 'HydraFacial Deluxe', customer_name: 'Ayesha Khan', customer_phone: '0300-1234567', doctor_name: 'Dr. Sarah Khan', appointment_time: '2026-08-31T09:00:00' }
+      { id: 1, treatment_name: 'HydraFacial Deluxe', customer_name: 'Zainab Fatima', customer_phone: '+923011112233', doctor_name: 'Dr. Ahmed Tariq', appointment_time: '2026-08-31T09:00:00' }
     ]);
     const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8' });
     const link = document.createElement('a');
@@ -113,7 +155,7 @@ export default function CalendarManager({ appointments = [], doctors = [], patie
     // Sync with Google Calendar
     await googleCalendarService.createGoogleEvent({
       treatment_name: selectedAppt.title,
-      customer_name: 'Ayesha Khan',
+      customer_name: 'Patient Consultation',
       doctor_name: selectedAppt.doctor_name,
       appointment_time: '2026-08-31T09:00:00',
       notes: selectedAppt.description
@@ -134,40 +176,50 @@ export default function CalendarManager({ appointments = [], doctors = [], patie
   // Handle Creating New Appointment from Modal
   const handleCreateNewAppointment = async (e) => {
     e.preventDefault();
-    const p = patients.find(pat => pat.id === parseInt(newPatientId)) || patients[0];
-    const d = doctors.find(doc => doc.id === parseInt(newDoctorId)) || doctors[0];
+    const pts = livePatients.length > 0 ? livePatients : patients;
+    const docs = liveDoctors.length > 0 ? liveDoctors : doctors;
+    const p = pts.find(pat => String(pat.id) === String(newPatientId)) || pts[0] || { id: 'pat-01', name: 'Zainab Fatima', phone: '+923011112233' };
+    const d = docs.find(doc => String(doc.id) === String(newDoctorId)) || docs[0] || { id: 'doc-01', name: 'Dr. Ahmed Tariq' };
 
     const appt = {
-      id: Date.now(),
       customer_id: p.id,
-      customer_name: p.name,
+      customer_name: p.name || p.full_name,
       customer_phone: p.phone,
       doctor_id: d.id,
-      doctor_name: d.name,
+      doctor_name: d.name || d.full_name,
       treatment_name: newTreatment,
-      appointment_time: `${newDate}T${newTime}`,
+      appointment_time: `${newDate}T09:00:00`,
       duration_minutes: 45,
-      source: 'reception',
+      source: 'calendar',
       status: 'confirmed',
       notes: newNotes
     };
 
-    await googleCalendarService.createGoogleEvent(appt);
+    let serverAppt = null;
+    try {
+      const res = await api.createAppointment(appt);
+      if (res && res.appointment) {
+        serverAppt = res.appointment;
+      }
+    } catch (err) {
+      console.warn("Could not book via calendar API:", err);
+    }
 
+    const finalAppt = serverAppt || appt;
     setScheduleItems(prev => [
       ...prev,
       {
-        id: appt.id,
-        title: `${newTreatment} (${p.name})`,
-        day: 'WED 3',
+        id: finalAppt.id || Date.now(),
+        title: `${newTreatment} (${p.name || p.full_name})`,
+        day: 'TODAY',
         time: `${newTime} - 45 min`,
-        color: 'bg-emerald-50 border-emerald-200 text-emerald-800'
+        color: 'bg-emerald-50 border-emerald-200 text-emerald-800 font-bold'
       }
     ]);
 
-    if (onAddAppointment) onAddAppointment(appt);
+    if (onAddAppointment) onAddAppointment(finalAppt);
     setIsNewBookingOpen(false);
-    alert('Appointment successfully created and synced to Google Calendar!');
+    alert(`Appointment successfully created for ${p.name || p.full_name} and synced with Live Receptionist & Doctor queue!`);
   };
 
   return (

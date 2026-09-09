@@ -87,18 +87,32 @@ class PatientService:
                     VALUES (?, ?, ?, ?, 'patient', ?, 1, ?)
                 """, (user_id, req.phone.strip(), req.email.strip() if req.email else None, req.password or "Patient@123", req.full_name.strip(), now_str))
 
+                # Generate sequential MRN if not provided
+                cursor.execute("SELECT COUNT(*) as cnt FROM patients")
+                cnt_row = cursor.fetchone()
+                total_cnt = cnt_row["cnt"] if cnt_row else 0
+                assigned_mrn = req.mrn.strip() if req.mrn else f"{total_cnt + 1:04d}-08-2026"
+
                 # Insert Patient Record
                 cursor.execute("""
                     INSERT INTO patients (
                         id, user_id, full_name, phone, email, gender, dob, 
-                        cnic, address, emergency_contact, whatsapp_available, created_at
+                        cnic, address, emergency_contact, whatsapp_available,
+                        mrn, skin_type, allergies, advance_balance, current_balance, visit_count, created_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     patient_id, user_id, req.full_name.strip(), req.phone.strip(),
                     req.email.strip() if req.email else None, req.gender.value, req.dob,
                     req.cnic.strip(), req.address.strip(), req.emergency_contact.strip(),
-                    1 if req.whatsapp_available else 0, now_str
+                    1 if req.whatsapp_available else 0,
+                    assigned_mrn,
+                    req.skin_type or "Fitzpatrick Type III (Medium)",
+                    req.allergies or "No known allergies",
+                    float(req.advance_balance or 0.0),
+                    float(req.current_balance or 0.0),
+                    0,
+                    now_str
                 ))
 
                 # Insert Notification Preferences
@@ -116,10 +130,19 @@ class PatientService:
 
                 return {
                     "patient_id": patient_id,
+                    "id": patient_id,
                     "user_id": user_id,
                     "full_name": req.full_name,
+                    "name": req.full_name,
                     "phone": req.phone,
+                    "email": req.email,
                     "cnic": req.cnic,
+                    "mrn": assigned_mrn,
+                    "skin_type": req.skin_type or "Fitzpatrick Type III (Medium)",
+                    "allergies": req.allergies or "No known allergies",
+                    "advance_balance": float(req.advance_balance or 0.0),
+                    "current_balance": float(req.current_balance or 0.0),
+                    "visit_count": 0,
                     "created_at": now_str
                 }
             finally:
@@ -137,7 +160,8 @@ class PatientService:
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT id, full_name, phone, email, gender, dob, cnic, address, emergency_contact, created_at
+            SELECT id, user_id, full_name, phone, email, gender, dob, cnic, address, emergency_contact,
+                   mrn, skin_type, allergies, advance_balance, current_balance, visit_count, created_at
             FROM patients WHERE id = ?
         """, (patient_id,))
         patient = cursor.fetchone()
@@ -177,36 +201,54 @@ class PatientService:
         conn.close()
 
         res = dict(patient)
+        res["name"] = res["full_name"]
         res["appointments"] = appts
-        res["total_visits"] = len([a for a in appts if a["status"] == "completed"])
+        completed_visits = len([a for a in appts if a["status"] == "completed"])
+        res["total_visits"] = max(res.get("visit_count", 0), completed_visits)
         res["latest_follow_up"] = dict(fu) if fu else None
         return res
 
     @staticmethod
     def list_patients(limit: int = 100) -> List[Dict[str, Any]]:
-        """Retrieves all registered patients for administrative directory."""
+        """Retrieves all registered patients for administrative directory & PRM."""
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id, user_id, full_name, phone, email, gender, dob, cnic, address, emergency_contact, whatsapp_available, created_at
+            SELECT id, user_id, full_name, phone, email, gender, dob, cnic, address, emergency_contact, 
+                   whatsapp_available, mrn, skin_type, allergies, advance_balance, current_balance, visit_count, created_at
             FROM patients
             ORDER BY created_at DESC
             LIMIT ?
         """, (limit,))
-        patients = [dict(r) for r in cursor.fetchall()]
+        patients = []
+        for r in cursor.fetchall():
+            item = dict(r)
+            item["name"] = item["full_name"]
+            if not item.get("mrn"):
+                item["mrn"] = f"{item['id'][-4:] if len(item['id']) >= 4 else '0001'}-08-2026"
+            patients.append(item)
         conn.close()
         return patients
 
     @staticmethod
     def update_patient(patient_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Updates patient demographic and contact information."""
+        """Updates patient demographic, clinical and contact information."""
         with _lock:
             conn = get_db_connection()
             try:
                 cursor = conn.cursor()
                 updates = []
                 params = []
-                for field in ["full_name", "phone", "email", "gender", "dob", "cnic", "address", "emergency_contact"]:
+                allowed_fields = [
+                    "full_name", "phone", "email", "gender", "dob", "cnic", "address", 
+                    "emergency_contact", "mrn", "skin_type", "allergies", "advance_balance", 
+                    "current_balance", "visit_count"
+                ]
+                # If "name" provided in payload, map to "full_name"
+                if "name" in data and "full_name" not in data:
+                    data["full_name"] = data["name"]
+
+                for field in allowed_fields:
                     if field in data and data[field] is not None:
                         updates.append(f"{field} = ?")
                         params.append(data[field])
@@ -253,19 +295,31 @@ class PatientService:
 
     @staticmethod
     def search_patients(query: str) -> List[Dict[str, Any]]:
-        """Search patients by name, phone, CNIC, or ID."""
+        """Search patients by name, phone, CNIC, MRN, email, or ID."""
         conn = get_db_connection()
         cursor = conn.cursor()
-        search_pattern = f"%{query.strip()}%"
+        search_pattern = f"%{query.strip().lower()}%"
 
         cursor.execute("""
-            SELECT id, full_name, phone, email, gender, dob, cnic, address, emergency_contact, created_at
+            SELECT id, user_id, full_name, phone, email, gender, dob, cnic, address, emergency_contact,
+                   mrn, skin_type, allergies, advance_balance, current_balance, visit_count, created_at
             FROM patients
-            WHERE full_name LIKE ? OR phone LIKE ? OR cnic LIKE ? OR id LIKE ?
-            ORDER BY full_name ASC
-            LIMIT 20
-        """, (search_pattern, search_pattern, search_pattern, search_pattern))
+            WHERE LOWER(full_name) LIKE ? 
+               OR phone LIKE ? 
+               OR cnic LIKE ? 
+               OR LOWER(id) LIKE ? 
+               OR LOWER(COALESCE(mrn, '')) LIKE ?
+               OR LOWER(COALESCE(email, '')) LIKE ?
+            ORDER BY created_at DESC, full_name ASC
+            LIMIT 50
+        """, (search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern))
 
-        results = [dict(r) for r in cursor.fetchall()]
+        results = []
+        for r in cursor.fetchall():
+            item = dict(r)
+            item["name"] = item["full_name"]
+            if not item.get("mrn"):
+                item["mrn"] = f"{item['id'][-4:] if len(item['id']) >= 4 else '0001'}-08-2026"
+            results.append(item)
         conn.close()
         return results
